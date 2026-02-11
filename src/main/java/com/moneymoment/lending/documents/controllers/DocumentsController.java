@@ -32,12 +32,12 @@ public class DocumentsController {
     }
 
     @GetMapping()
-    public ResponseEntity<ApiResponse<List<DocumentResponseDto>>> getMethodName() {
+    public ResponseEntity<ApiResponse<List<DocumentResponseDto>>> getAllDocs() {
         return ResponseEntity.ok(ApiResponse.success(documentsService.getAllDocuments(), "API is working"));
     }
 
     @PostMapping()
-    public ResponseEntity<ApiResponse<DocumentResponseDto>> postMethodName(
+    public ResponseEntity<ApiResponse<DocumentResponseDto>> uploadDocuments(
             @RequestBody DocumentUploadRequestDto request) {
 
         return ResponseEntity
