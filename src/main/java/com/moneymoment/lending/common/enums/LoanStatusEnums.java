@@ -13,5 +13,7 @@ public class LoanStatusEnums {
     public static final String OVERDUE = "OVERDUE";
     public static final String UNDER_ASSESSMENT = "UNDER_ASSESSMENT";
     public static final String REJECTED = "REJECTED";
+    public static final String UNDER_REVIEW = "UNDER_REVIEW";
+    public static final String MANUAL_REVIEW = "MANUAL_REVIEW";
 
 }

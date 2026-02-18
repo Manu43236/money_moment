@@ -31,6 +31,8 @@ public class AppConstants {
     public static final String CUSTOMER_NUMBER_PREFIX = "CUST";
     public static final String LOAN_NUMBER_PREFIX = "LN";
 
+    public static final String CREDIT_ASSESSMENT_NUMBER_PREFIX = "CAN";
+
     // User Number Generation Prefix
     public static final String USER_NUMBER_PREFIX = "USR";
 
