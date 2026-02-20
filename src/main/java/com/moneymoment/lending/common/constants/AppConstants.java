@@ -39,6 +39,9 @@ public class AppConstants {
     //DOCUMENTS Generation Prefixes
     public static final String USER_DOCUMENT_NUMBER_PREFIX = "URDOC";
     public static final String LOAN_DOCUMENT_NUMBER_PREFIX = "LOANDOC";
+
+    public static final String DISBURSEMENT_NUMBER_PREFIX = "DSBNUM";
+    
     
     // System User
     public static final String SYSTEM_USER = "SYSTEM";
