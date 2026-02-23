@@ -5,6 +5,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
+import com.moneymoment.lending.entities.UserEntity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -61,4 +68,8 @@ public class LoanResponseDto {
     // Audit
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private String originatingBranchCode;
+
+    private UserEntity processedByUser;
 }

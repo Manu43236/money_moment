@@ -4,7 +4,12 @@ import java.time.LocalDateTime;
 
 import com.moneymoment.lending.common.enums.EmploymentType;
 import com.moneymoment.lending.entities.CustomerEntity;
+import com.moneymoment.lending.entities.UserEntity;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,8 +30,11 @@ public class CustomerResponseDto {
     private String customerNumber;
     private EmploymentType employmentType; // "SALARIED" or "SELF_EMPLOYED"
     private Double monthlySalary;
-    // Getters and Setters
 
+    private String homeBranchCode;
+
+    private UserEntity relationshipManager;
+    // Getters and Setters
 
     public CustomerResponseDto fromEntityToDto(CustomerEntity entity) {
         this.id = entity.getId();
@@ -40,6 +48,9 @@ public class CustomerResponseDto {
         this.occupation = entity.getOccupation();
         this.employmentType = entity.getEmploymentType();
         this.monthlySalary = entity.getMonthlySalary();
+
+        this.homeBranchCode = entity.getHomeBranchCode();
+        this.relationshipManager = entity.getRelationshipManager();
 
         return this;
     }
