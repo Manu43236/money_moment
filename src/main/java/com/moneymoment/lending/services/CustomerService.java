@@ -14,6 +14,7 @@ import com.moneymoment.lending.repos.CustomerRepository;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CustomerService {
@@ -24,12 +25,14 @@ public class CustomerService {
         this.customerRepository = customerRepository; // Constructor for dependency injection if needed
     }
 
+    @Transactional
     public CustomerResponseDto fetchCustomerById(Long id) {
         return customerRepository.findById(id)
                 .map(entity -> toDto(entity))
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", id));
     }
 
+    @Transactional
     public CustomerResponseDto createCustomer(CustomerRequestDto custRespDto) {
 
         // Validate inputs
@@ -61,12 +64,14 @@ public class CustomerService {
 
     }
 
+    
     public List<CustomerResponseDto> fetchAllUsers() {
         return customerRepository.findAll().stream()
                 .map(entity -> toDto(entity))
                 .toList();
     }
 
+    @Transactional
     public CustomerResponseDto updateCustomer(Long id, CustomerRequestDto custRespDto) {
         return customerRepository.findById(id)
                 .map(entity -> {
@@ -87,6 +92,7 @@ public class CustomerService {
                 .orElseThrow(() -> new RuntimeException("Customer not found with id: " + id));
     }
 
+    @Transactional
     public void deleteCustomer(Long id) {
         customerRepository.deleteById(id);
         // Implementation for deleting a customer by ID

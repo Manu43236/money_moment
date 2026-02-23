@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.moneymoment.lending.common.enums.LoanStatusEnums;
 import com.moneymoment.lending.common.exception.BusinessLogicException;
@@ -36,6 +37,7 @@ public class ApprovalService {
     @Autowired
     private LoanStatusesRepo loanStatusesRepo;
 
+    @Transactional
     public ApprovalResponseDto approvalProcess(ApprovalRequestDto approvalRequestDto) {
 
         if (!approvalRequestDto.getAction().equals("APPROVE") && !approvalRequestDto.getAction().equals("REJECT")) {

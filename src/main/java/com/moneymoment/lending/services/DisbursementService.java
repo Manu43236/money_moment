@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.moneymoment.lending.common.constants.AppConstants;
 import com.moneymoment.lending.common.enums.LoanStatusEnums;
@@ -40,6 +41,8 @@ public class DisbursementService {
         this.loanStatusesRepo = loanStatusesRepo;
     }
 
+
+    @Transactional
     public DisbursementResponseDto processDisbursement(DisbursementRequestDto request) {
 
         // Step 1: Fetch Loan
@@ -146,6 +149,7 @@ public class DisbursementService {
     }
 
     // Get Disbursement by Loan
+    @Transactional
     public DisbursementResponseDto getDisbursementByLoan(String loanNumber) {
         LoanEntity loan = loanRepo.findByLoanNumber(loanNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", loanNumber));

@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.moneymoment.lending.common.constants.AppConstants;
 import com.moneymoment.lending.common.enums.DocumentStatusEnums;
@@ -36,6 +37,7 @@ public class DocumentsService {
 
     }
 
+    @Transactional
     public DocumentResponseDto uploadDocument(DocumentUploadRequestDto request) {
 
         DocumentEntity documentEntity = new DocumentEntity();
@@ -156,6 +158,7 @@ public class DocumentsService {
     }
 
     // get doc by id
+    @Transactional
     public DocumentResponseDto getDocumentById(Long id) {
         var documentEntity = documentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Document", "id", id.toString()));
@@ -164,6 +167,7 @@ public class DocumentsService {
     }
 
     // get all docs for customer
+    @Transactional
     public List<DocumentResponseDto> getDocumentsByCustomerNumber(String customerNumber) {
         var customer = customerRepository.findByCustomerNumber(customerNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerNumber", customerNumber));
@@ -172,6 +176,7 @@ public class DocumentsService {
     }
 
     // get document by customer number and document type code
+    @Transactional
     public List<DocumentResponseDto> getDocumentsByCustomerNumberAndDocumentTypeCode(String customerNumber,
             String documentTypeCode) {
         var customer = customerRepository.findByCustomerNumber(customerNumber)
@@ -183,6 +188,7 @@ public class DocumentsService {
     }
 
     // get all docs for loan
+    @Transactional
     public List<DocumentResponseDto> getDocumentsByLoanNumber(String loanNumber) {
         var loan = loanRepo.findByLoanNumber(loanNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", loanNumber));
@@ -191,6 +197,7 @@ public class DocumentsService {
     }
 
     // get document by loan number and document type code
+    @Transactional
     public List<DocumentResponseDto> getDocumentsByLoanNumberAndDocumentTypeCode(String loanNumber,
             String documentTypeCode) {
         var loan = loanRepo.findByLoanNumber(loanNumber)
@@ -202,6 +209,7 @@ public class DocumentsService {
     }
 
     // get document by document number
+    @Transactional
     public DocumentResponseDto getDocumentByDocumentNumber(String documentNumber) {
         var documentEntity = documentRepository.findByDocumentNumber(documentNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Document", "documentNumber", documentNumber));
@@ -209,11 +217,13 @@ public class DocumentsService {
     }
 
     // get all documents
+    @Transactional
     public List<DocumentResponseDto> getAllDocuments() {
         var documents = documentRepository.findAll();
         return documents.stream().map(this::toDto).toList();
     }
 
+    @Transactional
     public DocumentResponseDto updateDocument(String id, DocumentUploadRequestDto entity) {
         var documentEntity = documentRepository.findById(Long.parseLong(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Document", "id", id));
@@ -235,6 +245,7 @@ public class DocumentsService {
         return toDto(updatedDocument);
     }
 
+    @Transactional
     public DocumentResponseDto verifyDocument(String documentNumber, DocumentVerifyDto verifyDto) {
         var documentEntity = documentRepository.findByDocumentNumber(documentNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Document", "documentNumber", documentNumber));
@@ -251,6 +262,7 @@ public class DocumentsService {
     }
 
     // get documents which are verification is not rejected
+    @Transactional
     public List<DocumentResponseDto> getDocumentsForVerification() {
         var documents = documentRepository.findAll().stream()
                 .filter(doc -> doc.getUploadStatus() != DocumentStatusEnums.REJECTED)
@@ -259,6 +271,7 @@ public class DocumentsService {
     }
 
     // get customer's documents which are verification is not rejected
+    @Transactional
     public List<DocumentResponseDto> getCustomerDocumentsForVerification(String customerNumber) {
         var customer = customerRepository.findByCustomerNumber(customerNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerNumber", customerNumber));

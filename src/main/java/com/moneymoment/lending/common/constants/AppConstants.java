@@ -33,6 +33,10 @@ public class AppConstants {
 
     public static final String CREDIT_ASSESSMENT_NUMBER_PREFIX = "CAN";
 
+    public static final String COLLATERAL_NUMBER_PREFIX = "COL";
+
+    
+
     // User Number Generation Prefix
     public static final String USER_NUMBER_PREFIX = "USR";
 

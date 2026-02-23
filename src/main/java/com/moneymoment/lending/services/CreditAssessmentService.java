@@ -18,6 +18,7 @@ import com.moneymoment.lending.repos.LoanRepo;
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CreditAssessmentService {
@@ -28,6 +29,7 @@ public class CreditAssessmentService {
 
     private final CreditAssessmentRepository creditAssessmentRepository;
 
+    
     CreditAssessmentService(CreditAssessmentRepository creditAssessmentRepository, LoanRepo loanRepo,
             LoanPurposesRepo loanPurposesRepo, LoanStatusesRepo loanStatusesRepo) {
         this.creditAssessmentRepository = creditAssessmentRepository;
@@ -35,6 +37,7 @@ public class CreditAssessmentService {
         this.loanStatusesRepo = loanStatusesRepo;
     }
 
+    @Transactional
     public CreditAssessmentResponseDto createCreditAssessment(CreditAssessmentRequestDto creditAssessmentRequestDto) {
 
         LoanEntity loanEntity = loanRepo.findByLoanNumber(creditAssessmentRequestDto.getLoanNumber())

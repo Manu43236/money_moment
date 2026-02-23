@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService {
@@ -32,6 +33,7 @@ public class UserService {
         // Constructor for UserService
     }
 
+    @Transactional
     public UserResponseDto createUser(UserRequestDto request) {
 
         // 1. Validate duplicates
@@ -89,6 +91,7 @@ public class UserService {
         return toDto(userEntity);
     }
 
+    @Transactional
     private RoleResponseDto roleToDto(RoleEntity role) {
         RoleResponseDto dto = new RoleResponseDto();
         dto.setId(role.getId());
@@ -140,6 +143,7 @@ public class UserService {
     }
 
     // get user by id
+    @Transactional(readOnly = true)
     public UserResponseDto getUserById(Long id) {
         UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
@@ -147,6 +151,7 @@ public class UserService {
     }
 
     // get user by employeeId
+    @Transactional
     public UserResponseDto getUserByEmployeeId(String employeeId) {
         UserEntity userEntity = userRepository.findByEmployeeId(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "employeeId", employeeId));
@@ -154,6 +159,7 @@ public class UserService {
     }
 
     // get all users
+    @Transactional
     public List<UserResponseDto> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(this::toDto)
@@ -161,6 +167,7 @@ public class UserService {
     }
 
     // get user by role code
+    @Transactional
     public List<UserResponseDto> getUsersByRoleCode(String roleCode) {
         return userRepository.findAll().stream()
                 .filter(user -> user.getRoles().stream()
@@ -170,6 +177,7 @@ public class UserService {
     }
 
     // get all users by branch code
+    @Transactional
     public List<UserResponseDto> getUsersByBranchCode(String branchCode) {
         return userRepository.findAll().stream()
                 .filter(user -> user.getBranchCode().equals(branchCode))
@@ -178,6 +186,7 @@ public class UserService {
     }
 
     // get all assigned roles
+    @Transactional
     public UserResponseDto assignRoles(String employeeId, Set<String> roleCodes) {
         // Fetch user
         UserEntity user = userRepository.findByEmployeeId(employeeId)
@@ -201,6 +210,7 @@ public class UserService {
     }
 
     // Remove role from user
+    @Transactional
     public UserResponseDto removeRole(String employeeId, String roleCode) {
         UserEntity user = userRepository.findByEmployeeId(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "employeeId", employeeId));
