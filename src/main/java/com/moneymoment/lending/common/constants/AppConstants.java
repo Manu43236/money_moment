@@ -45,6 +45,10 @@ public class AppConstants {
     public static final String LOAN_DOCUMENT_NUMBER_PREFIX = "LOANDOC";
 
     public static final String DISBURSEMENT_NUMBER_PREFIX = "DSBNUM";
+
+    public static final String PAYMENT_NUMBER_PREFIX = "PAYMENT_NUM";
+
+    
     
     
     // System User

@@ -1,6 +1,7 @@
 package com.moneymoment.lending.services;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -13,7 +14,9 @@ import com.moneymoment.lending.common.exception.ResourceNotFoundException;
 import com.moneymoment.lending.common.utils.NumberGenerator;
 import com.moneymoment.lending.dtos.DisbursementRequestDto;
 import com.moneymoment.lending.dtos.DisbursementResponseDto;
+import com.moneymoment.lending.dtos.EmiScheduleResponseDto;
 import com.moneymoment.lending.entities.DisbursementEntity;
+import com.moneymoment.lending.entities.EmiScheduleEntity;
 import com.moneymoment.lending.entities.LoanEntity;
 import com.moneymoment.lending.entities.UserEntity;
 import com.moneymoment.lending.master.entities.LoanStatusesEntity;
@@ -32,15 +35,31 @@ public class DisbursementService {
     private final LoanRepo loanRepo;
     private final UserRepository userRepository;
     private final LoanStatusesRepo loanStatusesRepo;
+    private EMIScheduleGenerationService emiScheduleGenerationService;
 
     public DisbursementService(DisbursementRepository disbursementRepository, LoanRepo loanRepo,
-            UserRepository userRepository, LoanStatusesRepo loanStatusesRepo) {
+            UserRepository userRepository, LoanStatusesRepo loanStatusesRepo,
+            EMIScheduleGenerationService emiScheduleGenerationService) {
         this.disbursementRepository = disbursementRepository;
         this.loanRepo = loanRepo;
         this.userRepository = userRepository;
         this.loanStatusesRepo = loanStatusesRepo;
+        this.emiScheduleGenerationService = emiScheduleGenerationService; // ← Add this
+
     }
 
+    @Transactional
+    public String scheduleEmis(String loannumber) {
+
+        LoanEntity loan = loanRepo.findByLoanNumber(loannumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", loannumber));
+
+        List<EmiScheduleResponseDto> emiScheduleResponseDtos = emiScheduleGenerationService
+                .generateSchedule(loan.getId());
+
+        return "EMIs scheduled successfully";
+
+    }
 
     @Transactional
     public DisbursementResponseDto processDisbursement(DisbursementRequestDto request) {
@@ -128,6 +147,11 @@ public class DisbursementService {
             loan.setLoanStatus(disbursedStatus);
             loan.setDisbursedDate(LocalDateTime.now());
             loanRepo.save(loan);
+
+            // add emis
+            List<EmiScheduleResponseDto> emiScheduleResponseDtos = emiScheduleGenerationService
+                    .generateSchedule(loan.getId());
+
         }
 
         // Step 11: Return Response

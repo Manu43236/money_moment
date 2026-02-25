@@ -1,5 +1,6 @@
 package com.moneymoment.lending.entities;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import com.moneymoment.lending.common.entity.BaseEntity;
@@ -116,6 +117,34 @@ public class LoanEntity extends BaseEntity {
     private String disbursementAccountNumber;
     @Column(name = "disbursement_ifsc")
     private String disbursementIfsc;
+
+    // EMI Tracking Fields (LMS)
+    @Column(name = "first_emi_due_date")
+    private LocalDate firstEmiDueDate;
+
+    @Column(name = "next_due_date")
+    private LocalDate nextDueDate;
+
+    @Column(name = "number_of_paid_emis")
+    private Integer numberOfPaidEmis;
+
+    @Column(name = "number_of_overdue_emis")
+    private Integer numberOfOverdueEmis;
+
+    @Column(name = "current_dpd")
+    private Integer currentDpd;
+
+    @Column(name = "highest_dpd")
+    private Integer highestDpd;
+
+    @Column(name = "total_overdue_amount")
+    private Double totalOverdueAmount;
+
+    @Column(name = "total_penalty_amount")
+    private Double totalPenaltyAmount;
+
+    @Column(name = "last_payment_date")
+    private LocalDate lastPaymentDate;
 
     @Column(name = "repayment_frequency")
     private String repaymentFrequency;

@@ -1,5 +1,7 @@
 package com.moneymoment.lending.controllers;
 
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +23,13 @@ public class DisbursementController {
 
     public DisbursementController(DisbursementService disbursementService) {
         this.disbursementService = disbursementService;
+    }
+
+    @PostMapping("/emi/scheduleEmis/{loanNumber}")
+    public String postMethodName(@PathVariable String loanNumber) {
+        String string = disbursementService.scheduleEmis(loanNumber);
+        return string;
+
     }
 
     @PostMapping
