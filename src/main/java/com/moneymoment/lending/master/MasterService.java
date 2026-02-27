@@ -21,6 +21,8 @@ import com.moneymoment.lending.master.repos.LoanStatusesRepo;
 import com.moneymoment.lending.master.repos.LoneTypeRepo;
 import com.moneymoment.lending.master.repos.ProcessingFeeConfigRepository;
 import com.moneymoment.lending.master.repos.TenureMasterRepository;
+import com.moneymoment.lending.entities.RoleEntity;
+import com.moneymoment.lending.repos.RoleRepository;
 
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -39,6 +41,7 @@ public class MasterService {
         private final InterestRateConfigRepository interestRateConfigRepo;
 
         private final DocumentTypesRepo documentTypesRepo;
+        private final RoleRepository roleRepository;
 
         // Constructor with all 4 repos
         MasterService(LoneTypeRepo loanTypeRepo, LoanPurposesRepo loanPurposeRepo,
@@ -46,7 +49,8 @@ public class MasterService {
                         InterestRateConfigRepository interestRateConfigRepo,
                         TenureMasterRepository tenureMasterRepo,
                         DocumentTypesRepo documentTypesRepo,
-                        ProcessingFeeConfigRepository processingFeeConfigRepo) {
+                        ProcessingFeeConfigRepository processingFeeConfigRepo,
+                        RoleRepository roleRepository) {
                 this.loanTypeRepo = loanTypeRepo;
                 this.loanPurposeRepo = loanPurposeRepo;
                 this.disbursementModeRepo = disbursementModeRepo;
@@ -55,6 +59,7 @@ public class MasterService {
                 this.tenureMasterRepo = tenureMasterRepo;
                 this.processingFeeConfigRepo = processingFeeConfigRepo;
                 this.documentTypesRepo = documentTypesRepo;
+                this.roleRepository = roleRepository;
         }
 
         public List<LoanTypesEntity> getAllLoanTypes() {
@@ -141,6 +146,15 @@ public class MasterService {
         public DocumentTypesEntity getDocumentTypesByCode(String code) {
                 return documentTypesRepo.findByCode(code)
                                 .orElseThrow(() -> new ResourceNotFoundException("DocumentType", "code", code));
+        }
+
+        public List<RoleEntity> getAllRoles() {
+                return roleRepository.findByIsActive(true);
+        }
+
+        public RoleEntity getRoleByCode(String roleCode) {
+                return roleRepository.findByRoleCode(roleCode)
+                                .orElseThrow(() -> new ResourceNotFoundException("Role", "roleCode", roleCode));
         }
 
 }

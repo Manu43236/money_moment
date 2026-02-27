@@ -17,6 +17,7 @@ import com.moneymoment.lending.master.entities.LoanStatusesEntity;
 import com.moneymoment.lending.master.entities.LoanTypesEntity;
 import com.moneymoment.lending.master.entities.ProcessingFeeConfigEntity;
 import com.moneymoment.lending.master.entities.TenureMasterEntity;
+import com.moneymoment.lending.entities.RoleEntity;
 
 @RestController
 @RequestMapping("/api/masters")
@@ -97,6 +98,20 @@ public class MasterController {
         return ResponseEntity.ok(ApiResponse.success(
                 masterService.getDocumentTypesByApplicableFor(applicableFor),
                 "Document types fetched successfully"));
+    }
+
+    @GetMapping("/roles")
+    public ResponseEntity<ApiResponse<List<RoleEntity>>> getAllRoles() {
+        return ResponseEntity.ok(ApiResponse.success(
+                masterService.getAllRoles(),
+                "Roles fetched successfully"));
+    }
+
+    @GetMapping("/roles/{roleCode}")
+    public ResponseEntity<ApiResponse<RoleEntity>> getRoleByCode(@PathVariable String roleCode) {
+        return ResponseEntity.ok(ApiResponse.success(
+                masterService.getRoleByCode(roleCode),
+                "Role fetched successfully"));
     }
 
     // doc by code @GetMapping("/document-types/code/{code}")
