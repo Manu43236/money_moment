@@ -211,6 +211,14 @@ public class UserService {
         return toDto(user);
     }
 
+    // Bulk create users
+    @Transactional
+    public void bulkCreateUsers(List<UserRequestDto> requests) {
+        for (UserRequestDto request : requests) {
+            createUser(request);
+        }
+    }
+
     // Login
     @Transactional(readOnly = true)
     public LoginResponseDto login(LoginRequestDto request) {
