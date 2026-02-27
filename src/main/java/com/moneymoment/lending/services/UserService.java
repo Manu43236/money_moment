@@ -4,6 +4,8 @@ import com.moneymoment.lending.common.constants.AppConstants;
 import com.moneymoment.lending.common.exception.DuplicateRecordException;
 import com.moneymoment.lending.common.exception.ResourceNotFoundException;
 import com.moneymoment.lending.common.utils.NumberGenerator;
+import com.moneymoment.lending.dtos.LoginRequestDto;
+import com.moneymoment.lending.dtos.LoginResponseDto;
 import com.moneymoment.lending.dtos.RoleResponseDto;
 import com.moneymoment.lending.dtos.UserRequestDto;
 import com.moneymoment.lending.dtos.UserResponseDto;
@@ -207,6 +209,37 @@ public class UserService {
         user = userRepository.save(user);
 
         return toDto(user);
+    }
+
+    // Login
+    @Transactional(readOnly = true)
+    public LoginResponseDto login(LoginRequestDto request) {
+        UserEntity user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "username", request.getUsername()));
+
+        if (!user.getIsActive()) {
+            throw new RuntimeException("User account is inactive");
+        }
+
+        if (!user.getPassword().equals(request.getPassword())) {
+            throw new RuntimeException("Invalid username or password");
+        }
+
+        LoginResponseDto response = new LoginResponseDto();
+        response.setId(user.getId());
+        response.setUserNumber(user.getUserNumber());
+        response.setEmployeeId(user.getEmployeeId());
+        response.setUsername(user.getUsername());
+        response.setFullName(user.getFullName());
+        response.setEmail(user.getEmail());
+        response.setPhone(user.getPhone());
+        response.setDepartment(user.getDepartment());
+        response.setDesignation(user.getDesignation());
+        response.setBranchCode(user.getBranchCode());
+        response.setRegionCode(user.getRegionCode());
+        response.setRoles(user.getRoles().stream().map(this::roleToDto).collect(Collectors.toSet()));
+
+        return response;
     }
 
     // Remove role from user
