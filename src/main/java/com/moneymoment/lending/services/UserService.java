@@ -14,6 +14,7 @@ import com.moneymoment.lending.entities.UserEntity;
 import com.moneymoment.lending.repos.RoleRepository;
 import com.moneymoment.lending.repos.UserRepository;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -212,11 +213,19 @@ public class UserService {
     }
 
     // Bulk create users
-    @Transactional
-    public void bulkCreateUsers(List<UserRequestDto> requests) {
+    public String bulkCreateUsers(List<UserRequestDto> requests) {
+        List<String> skipped = new ArrayList<>();
         for (UserRequestDto request : requests) {
-            createUser(request);
+            try {
+                createUser(request);
+            } catch (DuplicateRecordException e) {
+                skipped.add(request.getUsername());
+            }
         }
+        if (skipped.isEmpty()) {
+            return "All users are created";
+        }
+        return "Except " + String.join(", ", skipped) + " rest of all users are created";
     }
 
     // Login

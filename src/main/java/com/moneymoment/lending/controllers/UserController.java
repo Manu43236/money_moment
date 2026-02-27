@@ -45,8 +45,8 @@ public class UserController {
     // bulk create users
     @PostMapping("/bulk")
     public ResponseEntity<ApiResponse<Void>> bulkCreateUsers(@RequestBody List<UserRequestDto> userRequestDtos) {
-        userService.bulkCreateUsers(userRequestDtos);
-        return ResponseEntity.ok(ApiResponse.success(null, "All users are created"));
+        String message = userService.bulkCreateUsers(userRequestDtos);
+        return ResponseEntity.ok(ApiResponse.success(null, message));
     }
 
     // get all users
