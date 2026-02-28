@@ -17,8 +17,8 @@ public class EodScheduler {
         this.eodService = eodService;
     }
 
-    // Runs every day at 11:59 PM
-    @Scheduled(cron = "0 59 23 * * *")
+    // Runs every day at 11:59 PM IST
+    @Scheduled(cron = "0 59 23 * * *", zone = "Asia/Kolkata")
     public void runDailyEod() {
         log.info("========== SCHEDULED EOD TRIGGERED ==========");
         eodService.processEod();
