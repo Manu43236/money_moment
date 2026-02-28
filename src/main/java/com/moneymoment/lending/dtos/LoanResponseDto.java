@@ -7,11 +7,6 @@ import java.time.LocalDateTime;
 
 import com.moneymoment.lending.entities.UserEntity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -64,6 +59,9 @@ public class LoanResponseDto {
     private String disbursementModeName;
     private String disbursementAccountNumber;
     private String disbursementIfsc;
+
+    private String createdBy;
+    private String updatedBy;
 
     // Audit
     private LocalDateTime createdAt;

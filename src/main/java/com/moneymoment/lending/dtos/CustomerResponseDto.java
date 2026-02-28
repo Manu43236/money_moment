@@ -6,10 +6,6 @@ import com.moneymoment.lending.common.enums.EmploymentType;
 import com.moneymoment.lending.entities.CustomerEntity;
 import com.moneymoment.lending.entities.UserEntity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -32,6 +28,9 @@ public class CustomerResponseDto {
     private Double monthlySalary;
 
     private String homeBranchCode;
+
+    private String createdBy;
+    private String updatedBy;
 
     private UserEntity relationshipManager;
     // Getters and Setters

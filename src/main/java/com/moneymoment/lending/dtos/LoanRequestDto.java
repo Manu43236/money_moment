@@ -16,6 +16,8 @@ public class LoanRequestDto {
     private String disbursementAccountNumber;
     private String disbursementIfsc;
 
+    private String createdBy;
+
     private Double loanAmount;
     private Integer tenureMonths;
     // Getters and Setters

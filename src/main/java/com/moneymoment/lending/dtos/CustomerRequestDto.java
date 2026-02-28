@@ -21,6 +21,7 @@ public class CustomerRequestDto {
     private String address;
     private String occupation;
     private EmploymentType employmentType; // "SALARIED" or "SELF_EMPLOYED"
- private Double monthlySalary;
+    private Double monthlySalary;
+    private String createdBy;
     // Getters and Setters
 }
