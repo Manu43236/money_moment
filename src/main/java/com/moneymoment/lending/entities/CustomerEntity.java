@@ -76,7 +76,7 @@ public class CustomerEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "relationship_manager_id")
-    private String relationshipManager;
+    private UserEntity relationshipManager;
 
     // audit fields
     @Column(updatable = false)

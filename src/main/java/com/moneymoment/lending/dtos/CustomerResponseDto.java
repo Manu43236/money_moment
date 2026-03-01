@@ -32,7 +32,7 @@ public class CustomerResponseDto {
     private String createdBy;
     private String updatedBy;
 
-    private String relationshipManager;
+    private UserEntity relationshipManager;
     // Getters and Setters
 
     public CustomerResponseDto fromEntityToDto(CustomerEntity entity) {

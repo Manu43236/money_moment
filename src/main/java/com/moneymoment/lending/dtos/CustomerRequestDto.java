@@ -3,6 +3,7 @@ package com.moneymoment.lending.dtos;
 import java.time.LocalDateTime;
 
 import com.moneymoment.lending.common.enums.EmploymentType;
+import com.moneymoment.lending.entities.UserEntity;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -24,6 +25,6 @@ public class CustomerRequestDto {
     private Double monthlySalary;
     private String createdBy;
     private String homeBranchCode;
-    private String relationshipManagerId;
+    private UserEntity relationshipManagerId;
     // Getters and Setters
 }
