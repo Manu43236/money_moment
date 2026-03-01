@@ -11,6 +11,7 @@ import com.moneymoment.lending.dtos.CustomerResponseDto;
 import com.moneymoment.lending.entities.CustomerEntity;
 import com.moneymoment.lending.repos.CustomerRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -56,15 +57,19 @@ public class CustomerService {
         customerEntity.setOccupation(custRespDto.getOccupation());
         customerEntity.setEmploymentType(custRespDto.getEmploymentType());
         customerEntity.setMonthlySalary(custRespDto.getMonthlySalary());
-
+        customerEntity.setCreatedBy(custRespDto.getCreatedBy());
+        customerEntity.setHomeBranchCode(custRespDto.getHomeBranchCode());
+        customerEntity.setRelationshipManager(custRespDto.getRelationshipManagerId());
         customerEntity.setCustomerNumber(NumberGenerator.generateCustomerNumber());
+
+        customerEntity.setHomeBranchCode(custRespDto.getHomeBranchCode());
+        customerEntity.setCreatedAt(LocalDateTime.now());
 
         customerEntity = customerRepository.save(customerEntity);
         return toDto(customerEntity);
 
     }
 
-    
     public List<CustomerResponseDto> fetchAllUsers() {
         return customerRepository.findAll().stream()
                 .map(entity -> toDto(entity))

@@ -23,5 +23,7 @@ public class CustomerRequestDto {
     private EmploymentType employmentType; // "SALARIED" or "SELF_EMPLOYED"
     private Double monthlySalary;
     private String createdBy;
+    private String homeBranchCode;
+    private String relationshipManagerId;
     // Getters and Setters
 }
