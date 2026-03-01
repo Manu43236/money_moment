@@ -117,6 +117,27 @@ public class CreditAssessmentService {
 
         creditAssessmentEntity.setRemarks(remarks.toString());
 
+        // Recommended loan amount for rejected cases
+        if (recommendation.equals("REJECT")) {
+            double maxAffordableEmi = (loanEntity.getCustomer().getMonthlySalary() * 0.50)
+                    - creditAssessmentEntity.getExistingEmiObligations();
+            if (maxAffordableEmi > 0) {
+                double monthlyRate = loanEntity.getInterestRate() / 12 / 100;
+                int n = loanEntity.getTenureMonths();
+                double onePlusRPowerN = Math.pow(1 + monthlyRate, n);
+                double recommendedAmount = Math.floor((maxAffordableEmi * (onePlusRPowerN - 1)) / (monthlyRate * onePlusRPowerN));
+                creditAssessmentEntity.setRecommendedLoanAmount(recommendedAmount);
+                creditAssessmentEntity.setRecommendedLoanAmountRemark(
+                        "Based on your income and existing obligations, you may be eligible for a loan up to ₹"
+                                + String.format("%,.0f", recommendedAmount)
+                                + " at the same interest rate and tenure.");
+            } else {
+                creditAssessmentEntity.setRecommendedLoanAmount(0.0);
+                creditAssessmentEntity.setRecommendedLoanAmountRemark(
+                        "Your existing EMI obligations exceed 50% of your monthly income. No loan can be recommended at this time.");
+            }
+        }
+
         creditAssessmentEntity.setAssessedBy(creditAssessmentRequestDto.getAssessedBy()); // Employee ID from request
         creditAssessmentEntity.setAssessedAt(LocalDateTime.now());
         LoanStatusesEntity loanStatus = loanStatusesRepo
@@ -172,6 +193,8 @@ public class CreditAssessmentService {
         dto.setIsEligible(entity.getIsEligible());
         dto.setRecommendation(entity.getRecommendation());
         dto.setRemarks(entity.getRemarks());
+        dto.setRecommendedLoanAmount(entity.getRecommendedLoanAmount());
+        dto.setRecommendedLoanAmountRemark(entity.getRecommendedLoanAmountRemark());
 
         // Assessed By
         dto.setAssessedBy(entity.getAssessedBy());

@@ -40,6 +40,8 @@ public class CreditAssessmentResponseDto {
     private Boolean isEligible;
     private String recommendation;
     private String remarks;
+    private Double recommendedLoanAmount;
+    private String recommendedLoanAmountRemark;
 
     // Assessed By
     private String assessedBy;

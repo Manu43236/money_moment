@@ -72,6 +72,12 @@ public class CreditAssessmentEntity extends BaseEntity {
     @Column(name = "remarks", columnDefinition = "TEXT")
     private String remarks;
 
+    @Column(name = "recommended_loan_amount")
+    private Double recommendedLoanAmount;
+
+    @Column(name = "recommended_loan_amount_remark", columnDefinition = "TEXT")
+    private String recommendedLoanAmountRemark;
+
     // Assessed By
     @Column(name = "assessed_by", length = 100)
     private String assessedBy;
