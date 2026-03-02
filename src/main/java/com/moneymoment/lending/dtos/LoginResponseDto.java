@@ -22,4 +22,5 @@ public class LoginResponseDto {
     private String branchCode;
     private String regionCode;
     private Set<RoleResponseDto> roles;
+    private String token;
 }

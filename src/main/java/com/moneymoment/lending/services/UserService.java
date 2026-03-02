@@ -20,20 +20,26 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.moneymoment.lending.security.JwtUtil;
 
 @Service
 public class UserService {
 
     private final RoleRepository roleRepository;
-
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
-    UserService(UserRepository userRepository, RoleRepository roleRepository) {
+    UserService(UserRepository userRepository, RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
-        // Constructor for UserService
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
     }
 
     @Transactional
@@ -74,7 +80,7 @@ public class UserService {
         userEntity.setUserNumber(userNumber);
         userEntity.setEmployeeId(request.getEmployeeId());
         userEntity.setUsername(request.getUsername());
-        userEntity.setPassword(request.getPassword()); // TODO: Hash in Week 4
+        userEntity.setPassword(passwordEncoder.encode(request.getPassword()));
         userEntity.setEmail(request.getEmail());
         userEntity.setFullName(request.getFullName());
         userEntity.setPhone(request.getPhone());
@@ -238,7 +244,7 @@ public class UserService {
             throw new RuntimeException("User account is inactive");
         }
 
-        if (!user.getPassword().equals(request.getPassword())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new RuntimeException("Invalid username or password");
         }
 
@@ -255,6 +261,11 @@ public class UserService {
         response.setBranchCode(user.getBranchCode());
         response.setRegionCode(user.getRegionCode());
         response.setRoles(user.getRoles().stream().map(this::roleToDto).collect(Collectors.toSet()));
+
+        String roles = user.getRoles().stream()
+                .map(r -> r.getRoleCode())
+                .collect(Collectors.joining(","));
+        response.setToken(jwtUtil.generateToken(user.getUsername(), user.getEmployeeId(), roles));
 
         return response;
     }
