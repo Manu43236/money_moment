@@ -6,7 +6,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.moneymoment.lending.common.response.ApiResponse;
 import com.moneymoment.lending.dtos.LoanRequestDto;
 import com.moneymoment.lending.dtos.LoanResponseDto;
+import com.moneymoment.lending.dtos.LoanTimelineEventDto;
 import com.moneymoment.lending.services.LoanService;
+import com.moneymoment.lending.services.LoanTimelineService;
 
 import java.util.List;
 
@@ -21,9 +23,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class LoanController {
 
     private final LoanService loanService;
+    private final LoanTimelineService loanTimelineService;
 
-    LoanController(LoanService loanService) {
+    LoanController(LoanService loanService, LoanTimelineService loanTimelineService) {
         this.loanService = loanService;
+        this.loanTimelineService = loanTimelineService;
     }
 
     @PostMapping()
@@ -57,6 +61,13 @@ public class LoanController {
     public ResponseEntity<ApiResponse<List<LoanResponseDto>>> getLoansByCustomerId(@PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.success(loanService.fetchLoansByCustomerId(customerId),
                 "Successfully fetched loans for customer"));
+    }
+
+    // get loan timeline
+    @GetMapping("/{loanNumber}/timeline")
+    public ResponseEntity<ApiResponse<List<LoanTimelineEventDto>>> getLoanTimeline(@PathVariable String loanNumber) {
+        return ResponseEntity.ok(ApiResponse.success(loanTimelineService.getTimeline(loanNumber),
+                "Timeline fetched successfully"));
     }
 
 }

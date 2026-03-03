@@ -1,0 +1,657 @@
+{
+  "info": {
+    "name": "Money Moment - Lending Platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:1992",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Master Data",
+      "item": [
+        {
+          "name": "Get Loan Types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/loan-types", "host": ["{{baseUrl}}"], "path": ["api", "masters", "loan-types"] }
+          }
+        },
+        {
+          "name": "Get Loan Purposes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/loan-purposes", "host": ["{{baseUrl}}"], "path": ["api", "masters", "loan-purposes"] }
+          }
+        },
+        {
+          "name": "Get Loan Statuses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/loan-statuses", "host": ["{{baseUrl}}"], "path": ["api", "masters", "loan-statuses"] }
+          }
+        },
+        {
+          "name": "Get Disbursement Modes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/disbursement-modes", "host": ["{{baseUrl}}"], "path": ["api", "masters", "disbursement-modes"] }
+          }
+        },
+        {
+          "name": "Get Tenures By Loan Type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/tenures/HOME_LOAN", "host": ["{{baseUrl}}"], "path": ["api", "masters", "tenures", "HOME_LOAN"] }
+          }
+        },
+        {
+          "name": "Get Processing Fee Config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/processing-fee/HOME_LOAN", "host": ["{{baseUrl}}"], "path": ["api", "masters", "processing-fee", "HOME_LOAN"] }
+          }
+        },
+        {
+          "name": "Get Interest Rate",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/masters/interest-rate?loanTypeCode=HOME_LOAN&creditScore=750&loanAmount=1500000&tenureMonths=120",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "masters", "interest-rate"],
+              "query": [
+                { "key": "loanTypeCode", "value": "HOME_LOAN" },
+                { "key": "creditScore", "value": "750" },
+                { "key": "loanAmount", "value": "1500000" },
+                { "key": "tenureMonths", "value": "120" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Document Types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/document-types", "host": ["{{baseUrl}}"], "path": ["api", "masters", "document-types"] }
+          }
+        },
+        {
+          "name": "Get Document Types By Applicable For",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/document-types/KYC", "host": ["{{baseUrl}}"], "path": ["api", "masters", "document-types", "KYC"] }
+          }
+        },
+        {
+          "name": "Get Document Type By Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/document-types/code/PAN_CARD", "host": ["{{baseUrl}}"], "path": ["api", "masters", "document-types", "code", "PAN_CARD"] }
+          }
+        },
+        {
+          "name": "Get All Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/roles", "host": ["{{baseUrl}}"], "path": ["api", "masters", "roles"] }
+          }
+        },
+        {
+          "name": "Get Role By Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/masters/roles/LOAN_OFFICER", "host": ["{{baseUrl}}"], "path": ["api", "masters", "roles", "LOAN_OFFICER"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "EOD",
+      "item": [
+        {
+          "name": "Trigger EOD Manually",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/eod/run-now", "host": ["{{baseUrl}}"], "path": ["api", "eod", "run-now"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Loan Closure",
+      "item": [
+        {
+          "name": "Close Loan",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/loans/LN2026-0001/close", "host": ["{{baseUrl}}"], "path": ["api", "loans", "LN2026-0001", "close"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('token', response.data.token);",
+                  "    console.log('Token saved:', response.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john.doe\",\n  \"password\": \"Password@123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": \"HDFC_EMP007\",\n  \"username\": \"john.doe\",\n  \"password\": \"Password@123\",\n  \"email\": \"john.doe@hdfc.com\",\n  \"fullName\": \"John Doe\",\n  \"phone\": \"9876543210\",\n  \"department\": \"Retail Lending\",\n  \"designation\": \"Loan Officer\",\n  \"branchCode\": \"HDFC_BR_MUM_001\",\n  \"regionCode\": \"WEST\",\n  \"managerEmployeeId\": null,\n  \"joiningDate\": \"2024-01-15\",\n  \"roleCodes\": [\"LOAN_OFFICER\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+          }
+        },
+        {
+          "name": "Bulk Create Users",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"employeeId\": \"HDFC_EMP008\",\n    \"username\": \"priya.sharma\",\n    \"password\": \"Password@123\",\n    \"email\": \"priya.sharma@hdfc.com\",\n    \"fullName\": \"Priya Sharma\",\n    \"phone\": \"9876500002\",\n    \"department\": \"Credit\",\n    \"designation\": \"Credit Analyst\",\n    \"branchCode\": \"HDFC_BR_MUM_001\",\n    \"regionCode\": \"WEST\",\n    \"managerEmployeeId\": \"HDFC_EMP007\",\n    \"joiningDate\": \"2024-03-01\",\n    \"roleCodes\": [\"CREDIT_ANALYST\"]\n  },\n  {\n    \"employeeId\": \"HDFC_EMP009\",\n    \"username\": \"raj.kumar\",\n    \"password\": \"Password@123\",\n    \"email\": \"raj.kumar@hdfc.com\",\n    \"fullName\": \"Raj Kumar\",\n    \"phone\": \"9876500003\",\n    \"department\": \"Retail Lending\",\n    \"designation\": \"Relationship Manager\",\n    \"branchCode\": \"HDFC_BR_MUM_001\",\n    \"regionCode\": \"WEST\",\n    \"managerEmployeeId\": \"HDFC_EMP007\",\n    \"joiningDate\": \"2024-06-01\",\n    \"roleCodes\": [\"RELATIONSHIP_MANAGER\"]\n  }\n]"
+            },
+            "url": { "raw": "{{baseUrl}}/api/users/bulk", "host": ["{{baseUrl}}"], "path": ["api", "users", "bulk"] }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+          }
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/users/1", "host": ["{{baseUrl}}"], "path": ["api", "users", "1"] }
+          }
+        },
+        {
+          "name": "Get User By Employee ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/users/employee/HDFC_EMP007", "host": ["{{baseUrl}}"], "path": ["api", "users", "employee", "HDFC_EMP007"] }
+          }
+        },
+        {
+          "name": "Get Users By Role Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/users/role/LOAN_OFFICER", "host": ["{{baseUrl}}"], "path": ["api", "users", "role", "LOAN_OFFICER"] }
+          }
+        },
+        {
+          "name": "Get Users By Branch Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/users/branch/HDFC_BR_MUM_001", "host": ["{{baseUrl}}"], "path": ["api", "users", "branch", "HDFC_BR_MUM_001"] }
+          }
+        },
+        {
+          "name": "Assign Roles",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleCodes\": [\"CREDIT_ANALYST\", \"LOAN_OFFICER\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/users/HDFC_EMP007/roles", "host": ["{{baseUrl}}"], "path": ["api", "users", "HDFC_EMP007", "roles"] }
+          }
+        },
+        {
+          "name": "Remove Role",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/users/HDFC_EMP007/roles/CREDIT_ANALYST", "host": ["{{baseUrl}}"], "path": ["api", "users", "HDFC_EMP007", "roles", "CREDIT_ANALYST"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Create Customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arjun Mehta\",\n  \"phone\": \"9876501001\",\n  \"dob\": \"1988-07-15T00:00:00\",\n  \"email\": \"arjun.mehta@gmail.com\",\n  \"pan\": \"ABCPM1234F\",\n  \"aadhar\": \"234567890123\",\n  \"address\": \"Flat 302, Oberoi Heights, Andheri West, Mumbai, Maharashtra - 400053\",\n  \"occupation\": \"Software Engineer\",\n  \"employmentType\": \"SALARIED\",\n  \"monthlySalary\": 125000,\n  \"createdBy\": \"HDFC_EMP007\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/customers", "host": ["{{baseUrl}}"], "path": ["api", "customers"] }
+          }
+        },
+        {
+          "name": "Get All Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/customers", "host": ["{{baseUrl}}"], "path": ["api", "customers"] }
+          }
+        },
+        {
+          "name": "Get Customer By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/customers/1", "host": ["{{baseUrl}}"], "path": ["api", "customers", "1"] }
+          }
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arjun Mehta\",\n  \"phone\": \"9876501001\",\n  \"dob\": \"1988-07-15T00:00:00\",\n  \"email\": \"arjun.mehta@gmail.com\",\n  \"pan\": \"ABCPM1234F\",\n  \"aadhar\": \"234567890123\",\n  \"address\": \"Flat 302, Oberoi Heights, Andheri West, Mumbai\",\n  \"occupation\": \"Senior Software Engineer\",\n  \"employmentType\": \"SALARIED\",\n  \"monthlySalary\": 150000,\n  \"createdBy\": \"HDFC_EMP007\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/customers/1", "host": ["{{baseUrl}}"], "path": ["api", "customers", "1"] }
+          }
+        },
+        {
+          "name": "Delete Customer",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/customers/1", "host": ["{{baseUrl}}"], "path": ["api", "customers", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Loans",
+      "item": [
+        {
+          "name": "Create Loan",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 1,\n  \"loanTypeCode\": \"HOME_LOAN\",\n  \"loanPurposeCode\": \"HOME_PURCHASE\",\n  \"purpose\": \"Purchase of residential property in Mumbai\",\n  \"loanAmount\": 1500000,\n  \"tenureMonths\": 120,\n  \"disbursementAccountNumber\": \"1234567890\",\n  \"disbursementIfsc\": \"HDFC0001234\",\n  \"createdBy\": \"HDFC_EMP007\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/loans", "host": ["{{baseUrl}}"], "path": ["api", "loans"] }
+          }
+        },
+        {
+          "name": "Get All Loans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/loans", "host": ["{{baseUrl}}"], "path": ["api", "loans"] }
+          }
+        },
+        {
+          "name": "Get Loan By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/loans/1", "host": ["{{baseUrl}}"], "path": ["api", "loans", "1"] }
+          }
+        },
+        {
+          "name": "Get Loan By Loan Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/loans/loan-number/LN2026-0001", "host": ["{{baseUrl}}"], "path": ["api", "loans", "loan-number", "LN2026-0001"] }
+          }
+        },
+        {
+          "name": "Get Loans By Customer ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/loans/customer/1", "host": ["{{baseUrl}}"], "path": ["api", "loans", "customer", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Credit Assessment",
+      "item": [
+        {
+          "name": "Create Credit Assessment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanNumber\": \"LN2026-0001\",\n  \"existingEmiObligations\": 15000,\n  \"assessedBy\": \"HDFC_EMP007\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/credit-assessment", "host": ["{{baseUrl}}"], "path": ["api", "credit-assessment"] }
+          }
+        },
+        {
+          "name": "Get Assessment By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/credit-assessment/1", "host": ["{{baseUrl}}"], "path": ["api", "credit-assessment", "1"] }
+          }
+        },
+        {
+          "name": "Get Latest Assessment By Loan Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/credit-assessment/loan/LN2026-0001", "host": ["{{baseUrl}}"], "path": ["api", "credit-assessment", "loan", "LN2026-0001"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "Upload Document",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerNumber\": \"CUST2026-0001\",\n  \"loanNumber\": \"LN2026-0001\",\n  \"documentTypeCode\": \"PAN_CARD\",\n  \"fileName\": \"arjun_pan.pdf\",\n  \"fileUrl\": \"https://storage.example.com/docs/arjun_pan.pdf\",\n  \"fileType\": \"PDF\",\n  \"fileSizeKb\": 250\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api", "documents"] }
+          }
+        },
+        {
+          "name": "Get All Documents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api", "documents"] }
+          }
+        },
+        {
+          "name": "Get Documents By Customer Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/documents/customer/CUST2026-0001", "host": ["{{baseUrl}}"], "path": ["api", "documents", "customer", "CUST2026-0001"] }
+          }
+        },
+        {
+          "name": "Get Documents By Loan Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/documents/loan/LN2026-0001", "host": ["{{baseUrl}}"], "path": ["api", "documents", "loan", "LN2026-0001"] }
+          }
+        },
+        {
+          "name": "Verify Document",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documentNumber\": \"DOC2026-0001\",\n  \"verifiedBy\": \"HDFC_EMP007\",\n  \"verificationNotes\": \"Document is clear and valid\",\n  \"uploadStatus\": \"VERIFIED\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/documents/DOC2026-0001/verify", "host": ["{{baseUrl}}"], "path": ["api", "documents", "DOC2026-0001", "verify"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Loan Approval",
+      "item": [
+        {
+          "name": "Process Approval",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanNumber\": \"LN2026-0001\",\n  \"action\": \"APPROVE\",\n  \"remarks\": \"All documents verified. Customer meets eligibility criteria.\",\n  \"approvedByEmployeeId\": \"HDFC_EMP007\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/loan-approval", "host": ["{{baseUrl}}"], "path": ["api", "loan-approval"] }
+          }
+        },
+        {
+          "name": "Get Approval History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/loan-approval/history/LN2026-0001", "host": ["{{baseUrl}}"], "path": ["api", "loan-approval", "history", "LN2026-0001"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Disbursement",
+      "item": [
+        {
+          "name": "Process Disbursement",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanNumber\": \"LN2026-0001\",\n  \"disbursementMode\": \"NEFT\",\n  \"disbursedByEmployeeId\": \"HDFC_EMP007\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/disbursements", "host": ["{{baseUrl}}"], "path": ["api", "disbursements"] }
+          }
+        },
+        {
+          "name": "Schedule EMIs",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/disbursements/emi/scheduleEmis/LN2026-0001", "host": ["{{baseUrl}}"], "path": ["api", "disbursements", "emi", "scheduleEmis", "LN2026-0001"] }
+          }
+        },
+        {
+          "name": "Get Disbursement By Loan Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/disbursements/loan/LN2026-0001", "host": ["{{baseUrl}}"], "path": ["api", "disbursements", "loan", "LN2026-0001"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Collateral",
+      "item": [
+        {
+          "name": "Register Collateral - Property",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanNumber\": \"LN2026-0001\",\n  \"collateralType\": \"PROPERTY\",\n  \"propertyAddress\": \"Flat 302, Oberoi Heights, Andheri West, Mumbai\",\n  \"propertyType\": \"RESIDENTIAL\",\n  \"propertyAreaSqft\": 950.0,\n  \"propertyValue\": 8500000,\n  \"valuationAmount\": 8200000,\n  \"valuationDate\": \"2026-03-01\",\n  \"valuatorName\": \"Ramesh Valuation Services\",\n  \"valuatorCertificateNumber\": \"CERT2026-VAL-001\",\n  \"remarks\": \"Property in good condition\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/collateral", "host": ["{{baseUrl}}"], "path": ["api", "collateral"] }
+          }
+        },
+        {
+          "name": "Register Collateral - Gold",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanNumber\": \"LN2026-0001\",\n  \"collateralType\": \"GOLD\",\n  \"goldWeightGrams\": 50.0,\n  \"goldPurity\": \"22K\",\n  \"goldItemDescription\": \"Gold bangles and necklace\",\n  \"goldValue\": 285000,\n  \"valuationAmount\": 280000,\n  \"valuationDate\": \"2026-03-01\",\n  \"valuatorName\": \"State Bank Jewel Appraiser\",\n  \"valuatorCertificateNumber\": \"CERT2026-GOLD-001\",\n  \"remarks\": \"Hallmark certified gold\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/collateral", "host": ["{{baseUrl}}"], "path": ["api", "collateral"] }
+          }
+        },
+        {
+          "name": "Get Collateral By Loan Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/collateral/loan/LN2026-0001", "host": ["{{baseUrl}}"], "path": ["api", "collateral", "loan", "LN2026-0001"] }
+          }
+        },
+        {
+          "name": "Release Collateral",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/collateral/release/LN2026-0001", "host": ["{{baseUrl}}"], "path": ["api", "collateral", "release", "LN2026-0001"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "EMI Payments",
+      "item": [
+        {
+          "name": "Process EMI Payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanNumber\": \"LN2026-0001\",\n  \"emiNumber\": 1,\n  \"paymentAmount\": 15000.00,\n  \"paymentMode\": \"UPI\",\n  \"paymentDate\": \"2026-03-01\",\n  \"transactionId\": \"TXN2026030100001\",\n  \"referenceNumber\": \"REF2026030100001\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/emi-payments", "host": ["{{baseUrl}}"], "path": ["api", "emi-payments"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Penalties",
+      "item": [
+        {
+          "name": "Apply Penalty",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/penalties/apply?emiScheduleId=1&penaltyCode=LATE_PAYMENT",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "penalties", "apply"],
+              "query": [
+                { "key": "emiScheduleId", "value": "1" },
+                { "key": "penaltyCode", "value": "LATE_PAYMENT" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Penalties By Loan Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/penalties/loan/LN2026-0001", "host": ["{{baseUrl}}"], "path": ["api", "penalties", "loan", "LN2026-0001"] }
+          }
+        },
+        {
+          "name": "Get Penalties By EMI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/penalties/emi/1", "host": ["{{baseUrl}}"], "path": ["api", "penalties", "emi", "1"] }
+          }
+        },
+        {
+          "name": "Waive Penalty",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/penalties/waive/1?waivedByUserId=1&reason=Customer%20requested%20waiver%20due%20to%20medical%20emergency",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "penalties", "waive", "1"],
+              "query": [
+                { "key": "waivedByUserId", "value": "1" },
+                { "key": "reason", "value": "Customer requested waiver due to medical emergency" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
