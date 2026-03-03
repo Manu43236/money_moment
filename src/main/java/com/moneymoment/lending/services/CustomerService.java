@@ -9,9 +9,10 @@ import com.moneymoment.lending.common.validation.PhoneValidator;
 import com.moneymoment.lending.dtos.CustomerRequestDto;
 import com.moneymoment.lending.dtos.CustomerResponseDto;
 import com.moneymoment.lending.entities.CustomerEntity;
+import com.moneymoment.lending.entities.UserEntity;
 import com.moneymoment.lending.repos.CustomerRepository;
+import com.moneymoment.lending.repos.UserRepository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -21,91 +22,94 @@ import org.springframework.transaction.annotation.Transactional;
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
 
-    CustomerService(CustomerRepository customerRepository) {
-        this.customerRepository = customerRepository; // Constructor for dependency injection if needed
+    CustomerService(CustomerRepository customerRepository, UserRepository userRepository) {
+        this.customerRepository = customerRepository;
+        this.userRepository = userRepository;
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public CustomerResponseDto fetchCustomerById(Long id) {
         return customerRepository.findById(id)
-                .map(entity -> toDto(entity))
+                .map(this::toDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", id));
     }
 
     @Transactional
-    public CustomerResponseDto createCustomer(CustomerRequestDto custRespDto) {
+    public CustomerResponseDto createCustomer(CustomerRequestDto request) {
 
-        // Validate inputs
-        PanValidator.validate(custRespDto.getPan());
-        AadhaarValidator.validate(custRespDto.getAadhar());
-        PhoneValidator.validate(custRespDto.getPhone());
+        PanValidator.validate(request.getPan());
+        AadhaarValidator.validate(request.getAadhar());
+        PhoneValidator.validate(request.getPhone());
 
-        // Check for duplicates
-        if (customerRepository.findByEmail(custRespDto.getEmail()).isPresent()) {
-            throw new DuplicateRecordException("Customer already exists with email: " + custRespDto.getEmail());
+        if (customerRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new DuplicateRecordException("Customer already exists with email: " + request.getEmail());
         }
 
-        CustomerEntity customerEntity = new CustomerEntity();
-        customerEntity.setName(custRespDto.getName());
-        customerEntity.setPhone(custRespDto.getPhone());
-        customerEntity.setDob(custRespDto.getDob());
-        customerEntity.setEmail(custRespDto.getEmail());
-        customerEntity.setPan(custRespDto.getPan());
-        customerEntity.setAadhar(custRespDto.getAadhar());
-        customerEntity.setAddress(custRespDto.getAddress());
-        customerEntity.setOccupation(custRespDto.getOccupation());
-        customerEntity.setEmploymentType(custRespDto.getEmploymentType());
-        customerEntity.setMonthlySalary(custRespDto.getMonthlySalary());
-        customerEntity.setCreatedBy(custRespDto.getCreatedBy());
-        customerEntity.setHomeBranchCode(custRespDto.getHomeBranchCode());
-        customerEntity.setRelationshipManager(custRespDto.getRelationshipManagerId());
-        customerEntity.setCustomerNumber(NumberGenerator.generateCustomerNumber());
+        UserEntity relationshipManager = null;
+        if (request.getRelationshipManagerEmployeeId() != null
+                && !request.getRelationshipManagerEmployeeId().isEmpty()) {
+            relationshipManager = userRepository.findByEmployeeId(request.getRelationshipManagerEmployeeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "employeeId",
+                            request.getRelationshipManagerEmployeeId()));
+        }
 
-        customerEntity.setHomeBranchCode(custRespDto.getHomeBranchCode());
-        customerEntity.setCreatedAt(LocalDateTime.now());
+        CustomerEntity customer = new CustomerEntity();
+        customer.setName(request.getName());
+        customer.setPhone(request.getPhone());
+        customer.setDob(request.getDob());
+        customer.setEmail(request.getEmail());
+        customer.setPan(request.getPan());
+        customer.setAadhar(request.getAadhar());
+        customer.setAddress(request.getAddress());
+        customer.setOccupation(request.getOccupation());
+        customer.setEmploymentType(request.getEmploymentType());
+        customer.setMonthlySalary(request.getMonthlySalary());
+        customer.setHomeBranchCode(request.getHomeBranchCode());
+        customer.setRelationshipManager(relationshipManager);
+        customer.setCreatedBy(request.getCreatedBy());
+        customer.setCustomerNumber(NumberGenerator.generateCustomerNumber());
 
-        customerEntity = customerRepository.save(customerEntity);
-        return toDto(customerEntity);
-
+        customer = customerRepository.save(customer);
+        return toDto(customer);
     }
 
+    @Transactional(readOnly = true)
     public List<CustomerResponseDto> fetchAllUsers() {
         return customerRepository.findAll().stream()
-                .map(entity -> toDto(entity))
+                .map(this::toDto)
                 .toList();
     }
 
     @Transactional
-    public CustomerResponseDto updateCustomer(Long id, CustomerRequestDto custRespDto) {
-        return customerRepository.findById(id)
-                .map(entity -> {
-                    entity.setName(custRespDto.getName());
-                    entity.setPhone(custRespDto.getPhone());
-                    entity.setDob(custRespDto.getDob());
-                    entity.setEmail(custRespDto.getEmail());
-                    entity.setPan(custRespDto.getPan());
-                    entity.setAadhar(custRespDto.getAadhar());
-                    entity.setAddress(custRespDto.getAddress());
-                    entity.setOccupation(custRespDto.getOccupation());
-                    entity.setEmploymentType(custRespDto.getEmploymentType());
-                    entity.setMonthlySalary(custRespDto.getMonthlySalary());
+    public CustomerResponseDto updateCustomer(Long id, CustomerRequestDto request) {
+        CustomerEntity customer = customerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", id));
 
-                    return customerRepository.save(entity);
-                })
-                .map(updatedEntity -> toDto(updatedEntity))
-                .orElseThrow(() -> new RuntimeException("Customer not found with id: " + id));
+        customer.setName(request.getName());
+        customer.setPhone(request.getPhone());
+        customer.setDob(request.getDob());
+        customer.setEmail(request.getEmail());
+        customer.setPan(request.getPan());
+        customer.setAadhar(request.getAadhar());
+        customer.setAddress(request.getAddress());
+        customer.setOccupation(request.getOccupation());
+        customer.setEmploymentType(request.getEmploymentType());
+        customer.setMonthlySalary(request.getMonthlySalary());
+
+        return toDto(customerRepository.save(customer));
     }
 
     @Transactional
     public void deleteCustomer(Long id) {
         customerRepository.deleteById(id);
-        // Implementation for deleting a customer by ID
     }
 
     private CustomerResponseDto toDto(CustomerEntity entity) {
         CustomerResponseDto dto = new CustomerResponseDto();
         dto.setId(entity.getId());
+        dto.setCustomerNumber(entity.getCustomerNumber());
         dto.setName(entity.getName());
         dto.setPhone(entity.getPhone());
         dto.setDob(entity.getDob());
@@ -116,7 +120,15 @@ public class CustomerService {
         dto.setOccupation(entity.getOccupation());
         dto.setEmploymentType(entity.getEmploymentType());
         dto.setMonthlySalary(entity.getMonthlySalary());
-        dto.setCustomerNumber(entity.getCustomerNumber());
+        dto.setHomeBranchCode(entity.getHomeBranchCode());
+        dto.setCreatedBy(entity.getCreatedBy());
+        dto.setCreatedAt(entity.getCreatedAt());
+        dto.setUpdatedAt(entity.getUpdatedAt());
+
+        if (entity.getRelationshipManager() != null) {
+            dto.setRelationshipManagerEmployeeId(entity.getRelationshipManager().getEmployeeId());
+            dto.setRelationshipManagerName(entity.getRelationshipManager().getFullName());
+        }
 
         return dto;
     }
