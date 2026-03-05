@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
+import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.entities.LoanPenaltyEntity;
 import com.moneymoment.lending.services.PenaltyService;
 
@@ -36,12 +37,14 @@ public class PenaltyController {
     }
 
     @GetMapping("/loan/{loanNumber}")
-    public ResponseEntity<ApiResponse<List<LoanPenaltyEntity>>> getPenaltiesByLoan(
-            @PathVariable String loanNumber) {
+    public ResponseEntity<ApiResponse<PagedResponse<LoanPenaltyEntity>>> getPenaltiesByLoan(
+            @PathVariable String loanNumber,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
         return ResponseEntity.ok(
                 ApiResponse.success(
-                        penaltyService.getPenaltiesByLoan(loanNumber),
+                        penaltyService.getPenaltiesByLoan(loanNumber, page, size),
                         "Penalties fetched successfully"));
     }
 

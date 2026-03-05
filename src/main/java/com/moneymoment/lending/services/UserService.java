@@ -20,9 +20,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.moneymoment.lending.common.response.PagedResponse;
 
 import com.moneymoment.lending.security.JwtUtil;
 
@@ -169,29 +173,23 @@ public class UserService {
 
     // get all users
     @Transactional
-    public List<UserResponseDto> getAllUsers() {
-        return userRepository.findAll().stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+    public PagedResponse<UserResponseDto> getAllUsers(int page, int size) {
+        var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return PagedResponse.of(userRepository.findAll(pageable).map(this::toDto));
     }
 
     // get user by role code
     @Transactional
-    public List<UserResponseDto> getUsersByRoleCode(String roleCode) {
-        return userRepository.findAll().stream()
-                .filter(user -> user.getRoles().stream()
-                        .anyMatch(role -> role.getRoleCode().equals(roleCode)))
-                .map(this::toDto)
-                .collect(Collectors.toList());
+    public PagedResponse<UserResponseDto> getUsersByRoleCode(String roleCode, int page, int size) {
+        var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return PagedResponse.of(userRepository.findByRoles_RoleCode(roleCode, pageable).map(this::toDto));
     }
 
     // get all users by branch code
     @Transactional
-    public List<UserResponseDto> getUsersByBranchCode(String branchCode) {
-        return userRepository.findAll().stream()
-                .filter(user -> user.getBranchCode().equals(branchCode))
-                .map(this::toDto)
-                .collect(Collectors.toList());
+    public PagedResponse<UserResponseDto> getUsersByBranchCode(String branchCode, int page, int size) {
+        var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return PagedResponse.of(userRepository.findByBranchCode(branchCode, pageable).map(this::toDto));
     }
 
     // get all assigned roles

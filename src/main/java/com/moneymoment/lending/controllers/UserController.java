@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
+import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.dtos.AssignRolesDto;
 import com.moneymoment.lending.dtos.UserRequestDto;
 import com.moneymoment.lending.dtos.UserResponseDto;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("api/users")
@@ -51,8 +53,10 @@ public class UserController {
 
     // get all users
     @GetMapping()
-    public ResponseEntity<ApiResponse<List<UserResponseDto>>> getAllUsers() {
-        return ResponseEntity.ok(ApiResponse.success(userService.getAllUsers(), "All users fetched"));
+    public ResponseEntity<ApiResponse<PagedResponse<UserResponseDto>>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success(userService.getAllUsers(page, size), "All users fetched"));
     }
 
     // get user by id
@@ -70,19 +74,22 @@ public class UserController {
 
     // get all users by role code
     @GetMapping("/role/{roleCode}")
-    public ResponseEntity<ApiResponse<List<UserResponseDto>>> getAllUsersByRole(
-            @PathVariable String roleCode) {
+    public ResponseEntity<ApiResponse<PagedResponse<UserResponseDto>>> getAllUsersByRole(
+            @PathVariable String roleCode,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(
-                ApiResponse.success(userService.getUsersByRoleCode(roleCode), "All " + roleCode + " users fetched"));
+                ApiResponse.success(userService.getUsersByRoleCode(roleCode, page, size), "All " + roleCode + " users fetched"));
     }
 
     // get all users by branchCode
     @GetMapping("/branch/{branchCode}")
-    public ResponseEntity<ApiResponse<List<UserResponseDto>>> getAllUsersByBranch(
-            @PathVariable String branchCode) {
-
+    public ResponseEntity<ApiResponse<PagedResponse<UserResponseDto>>> getAllUsersByBranch(
+            @PathVariable String branchCode,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(
-                ApiResponse.success(userService.getUsersByBranchCode(branchCode),
+                ApiResponse.success(userService.getUsersByBranchCode(branchCode, page, size),
                         "All " + branchCode + " users fetched"));
     }
 

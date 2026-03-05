@@ -3,6 +3,8 @@ package com.moneymoment.lending.repos;
 import com.moneymoment.lending.entities.DocumentEntity;
 import com.moneymoment.lending.entities.LoanEntity;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -19,4 +21,10 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, Long> 
     List<DocumentEntity> findByLoanId(Long loanId);
 
     Optional<LoanEntity> findByCustomer_CustomerNumber(String customerNumber);
+
+    Page<DocumentEntity> findAll(Pageable pageable);
+
+    Page<DocumentEntity> findByCustomerIdAndUploadStatusNot(Long customerId, String status, Pageable pageable);
+
+    Page<DocumentEntity> findByLoanId(Long loanId, Pageable pageable);
 }

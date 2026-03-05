@@ -4,11 +4,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
+import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.dtos.DocumentResponseDto;
 import com.moneymoment.lending.dtos.DocumentVerifyDto;
 import com.moneymoment.lending.services.DocumentsService;
-
-import java.util.List;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -31,8 +30,10 @@ public class DocumentsController {
     }
 
     @GetMapping()
-    public ResponseEntity<ApiResponse<List<DocumentResponseDto>>> getAllDocs() {
-        return ResponseEntity.ok(ApiResponse.success(documentsService.getAllDocuments(), "API is working"));
+    public ResponseEntity<ApiResponse<PagedResponse<DocumentResponseDto>>> getAllDocs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success(documentsService.getAllDocuments(page, size), "Documents fetched successfully"));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -61,18 +62,22 @@ public class DocumentsController {
 
     // get documents by customer number
     @GetMapping("/customer/{customerNumber}")
-    public ResponseEntity<ApiResponse<List<DocumentResponseDto>>> getNotRejectedDocumentsByCustomerNumber(
-            @PathVariable String customerNumber) {
+    public ResponseEntity<ApiResponse<PagedResponse<DocumentResponseDto>>> getNotRejectedDocumentsByCustomerNumber(
+            @PathVariable String customerNumber,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity
-                .ok(ApiResponse.success(documentsService.getCustomerDocumentsForVerification(customerNumber),
+                .ok(ApiResponse.success(documentsService.getCustomerDocumentsForVerification(customerNumber, page, size),
                         "Documents fetched successfully"));
     }
 
     // get documents by loan number
     @GetMapping("/loan/{loanNumber}")
-    public ResponseEntity<ApiResponse<List<DocumentResponseDto>>> getDocumentsByLoanNumber(
-            @PathVariable String loanNumber) {
-        return ResponseEntity.ok(ApiResponse.success(documentsService.getDocumentsByLoanNumber(loanNumber),
+    public ResponseEntity<ApiResponse<PagedResponse<DocumentResponseDto>>> getDocumentsByLoanNumber(
+            @PathVariable String loanNumber,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success(documentsService.getDocumentsByLoanNumber(loanNumber, page, size),
                 "Documents fetched successfully"));
     }
 

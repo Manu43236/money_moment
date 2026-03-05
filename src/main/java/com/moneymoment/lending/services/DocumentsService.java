@@ -5,9 +5,13 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.moneymoment.lending.common.response.PagedResponse;
 
 import com.moneymoment.lending.common.constants.AppConstants;
 import com.moneymoment.lending.common.enums.DocumentStatusEnums;
@@ -216,11 +220,11 @@ public class DocumentsService {
 
     // get all docs for loan
     @Transactional
-    public List<DocumentResponseDto> getDocumentsByLoanNumber(String loanNumber) {
+    public PagedResponse<DocumentResponseDto> getDocumentsByLoanNumber(String loanNumber, int page, int size) {
         var loan = loanRepo.findByLoanNumber(loanNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", loanNumber));
-        var documents = documentRepository.findByLoanId(loan.getId());
-        return documents.stream().map(this::toDto).toList();
+        var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return PagedResponse.of(documentRepository.findByLoanId(loan.getId(), pageable).map(this::toDto));
     }
 
     // get document by loan number and document type code
@@ -245,9 +249,9 @@ public class DocumentsService {
 
     // get all documents
     @Transactional
-    public List<DocumentResponseDto> getAllDocuments() {
-        var documents = documentRepository.findAll();
-        return documents.stream().map(this::toDto).toList();
+    public PagedResponse<DocumentResponseDto> getAllDocuments(int page, int size) {
+        var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return PagedResponse.of(documentRepository.findAll(pageable).map(this::toDto));
     }
 
     @Transactional
@@ -299,13 +303,12 @@ public class DocumentsService {
 
     // get customer's documents which are verification is not rejected
     @Transactional
-    public List<DocumentResponseDto> getCustomerDocumentsForVerification(String customerNumber) {
+    public PagedResponse<DocumentResponseDto> getCustomerDocumentsForVerification(String customerNumber, int page, int size) {
         var customer = customerRepository.findByCustomerNumber(customerNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerNumber", customerNumber));
-        var documents = documentRepository.findByCustomerId(customer.getId()).stream()
-                .filter((doc) -> !doc.getUploadStatus().equals(DocumentStatusEnums.REJECTED))
-                .toList();
-
-        return documents.stream().map(this::toDto).toList();
+        var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return PagedResponse.of(documentRepository
+                .findByCustomerIdAndUploadStatusNot(customer.getId(), DocumentStatusEnums.REJECTED, pageable)
+                .map(this::toDto));
     }
 }

@@ -3,8 +3,12 @@ package com.moneymoment.lending.services;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.moneymoment.lending.common.response.PagedResponse;
 
 import com.moneymoment.lending.common.exception.BusinessLogicException;
 import com.moneymoment.lending.common.exception.ResourceNotFoundException;
@@ -108,11 +112,12 @@ public class PenaltyService {
     }
 
     @Transactional
-    public List<LoanPenaltyEntity> getPenaltiesByLoan(String loanNumber) {
+    public PagedResponse<LoanPenaltyEntity> getPenaltiesByLoan(String loanNumber, int page, int size) {
         LoanEntity loan = loanRepo.findByLoanNumber(loanNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", loanNumber));
 
-        return loanPenaltyRepository.findByLoanIdOrderByAppliedDateDesc(loan.getId());
+        var pageable = PageRequest.of(page, size, Sort.by("appliedDate").descending());
+        return PagedResponse.of(loanPenaltyRepository.findByLoanId(loan.getId(), pageable));
     }
 
     @Transactional

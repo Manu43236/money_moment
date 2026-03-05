@@ -11,7 +11,6 @@ import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.common.spec.LoanSpecification;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -212,14 +211,12 @@ public class LoanService {
 
         // get loans by customer id - for customer dashboard
         @Transactional
-        public List<LoanResponseDto> fetchLoansByCustomerId(Long customerId) {
+        public PagedResponse<LoanResponseDto> fetchLoansByCustomerId(Long customerId, int page, int size) {
                 customerRepository.findById(customerId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", customerId));
 
-                return loanRepo.findByCustomerId(customerId).stream()
-                                .map(loan -> toDto(loan))
-                                .toList();
-
+                var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+                return PagedResponse.of(loanRepo.findByCustomerId(customerId, pageable).map(this::toDto));
         }
 
         // get loan by loan number - for detailed loan view

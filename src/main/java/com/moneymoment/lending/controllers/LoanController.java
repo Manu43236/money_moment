@@ -67,8 +67,11 @@ public class LoanController {
 
     // get loans by customer id
     @GetMapping("/customer/{customerId}")
-    public ResponseEntity<ApiResponse<List<LoanResponseDto>>> getLoansByCustomerId(@PathVariable Long customerId) {
-        return ResponseEntity.ok(ApiResponse.success(loanService.fetchLoansByCustomerId(customerId),
+    public ResponseEntity<ApiResponse<PagedResponse<LoanResponseDto>>> getLoansByCustomerId(
+            @PathVariable Long customerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success(loanService.fetchLoansByCustomerId(customerId, page, size),
                 "Successfully fetched loans for customer"));
     }
 

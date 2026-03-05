@@ -1,6 +1,8 @@
 package com.moneymoment.lending.repos;
 
 import com.moneymoment.lending.entities.LoanPenaltyEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +13,8 @@ import java.util.List;
 public interface LoanPenaltyRepository extends JpaRepository<LoanPenaltyEntity, Long> {
 
     List<LoanPenaltyEntity> findByLoanIdOrderByAppliedDateDesc(Long loanId);
+
+    Page<LoanPenaltyEntity> findByLoanId(Long loanId, Pageable pageable);
 
     List<LoanPenaltyEntity> findByEmiScheduleId(Long emiScheduleId);
 
