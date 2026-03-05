@@ -5,7 +5,12 @@ import com.moneymoment.lending.master.repos.LoanPurposesRepo;
 import com.moneymoment.lending.master.repos.LoanStatusesRepo;
 import com.moneymoment.lending.master.repos.LoneTypeRepo;
 import com.moneymoment.lending.repos.CustomerRepository;
+import com.moneymoment.lending.repos.EmiScheduleRepository;
 import com.moneymoment.lending.repos.LoanRepo;
+import com.moneymoment.lending.dtos.EmiScheduleResponseDto;
+import com.moneymoment.lending.entities.EmiScheduleEntity;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.common.spec.LoanSpecification;
@@ -41,16 +46,18 @@ public class LoanService {
         private final CustomerRepository customerRepository;
 
         private final LoanRepo loanRepo;
+        private final EmiScheduleRepository emiScheduleRepository;
 
         LoanService(LoanRepo loanRepo, CustomerRepository customerRepository, LoneTypeRepo loneTypeRepo,
                         LoanPurposesRepo loanPurposesRepo, LoanStatusesRepo loanStatusesRepo,
-                        MasterService masterService) {
+                        MasterService masterService, EmiScheduleRepository emiScheduleRepository) {
                 this.loanRepo = loanRepo;
                 this.customerRepository = customerRepository;
                 this.loneTypeRepo = loneTypeRepo;
                 this.loanPurposesRepo = loanPurposesRepo;
                 this.loanStatusesRepo = loanStatusesRepo;
                 this.masterService = masterService;
+                this.emiScheduleRepository = emiScheduleRepository;
         }
 
         @Transactional
@@ -247,6 +254,38 @@ public class LoanService {
                 return loanRepo.findById(id)
                                 .map(loan -> toDto(loan))
                                 .orElseThrow(() -> new ResourceNotFoundException("Loan", "id", id));
+        }
+
+        // get EMI schedule for a loan
+        @Transactional(readOnly = true)
+        public List<EmiScheduleResponseDto> fetchEmiSchedule(String loanNumber) {
+                LoanEntity loan = loanRepo.findByLoanNumber(loanNumber)
+                                .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", loanNumber));
+                return emiScheduleRepository.findByLoanIdOrderByEmiNumberAsc(loan.getId())
+                                .stream().map(this::toEmiDto).collect(Collectors.toList());
+        }
+
+        private EmiScheduleResponseDto toEmiDto(EmiScheduleEntity e) {
+                EmiScheduleResponseDto dto = new EmiScheduleResponseDto();
+                dto.setId(e.getId());
+                dto.setLoanId(e.getLoan().getId());
+                dto.setLoanNumber(e.getLoan().getLoanNumber());
+                dto.setCustomerId(e.getCustomer().getId());
+                dto.setCustomerNumber(e.getCustomer().getCustomerNumber());
+                dto.setCustomerName(e.getCustomer().getName());
+                dto.setEmiNumber(e.getEmiNumber());
+                dto.setDueDate(e.getDueDate());
+                dto.setPrincipalAmount(e.getPrincipalAmount());
+                dto.setInterestAmount(e.getInterestAmount());
+                dto.setEmiAmount(e.getEmiAmount());
+                dto.setOutstandingPrincipal(e.getOutstandingPrincipal());
+                dto.setStatus(e.getStatus());
+                dto.setPaidDate(e.getPaidDate());
+                dto.setAmountPaid(e.getAmountPaid());
+                dto.setShortfallAmount(e.getShortfallAmount());
+                dto.setDaysPastDue(e.getDaysPastDue());
+                dto.setCreatedAt(e.getCreatedAt());
+                return dto;
         }
 
 }

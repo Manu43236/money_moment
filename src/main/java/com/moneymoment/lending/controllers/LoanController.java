@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
 import com.moneymoment.lending.common.response.PagedResponse;
+import com.moneymoment.lending.dtos.EmiScheduleResponseDto;
 import com.moneymoment.lending.dtos.LoanRequestDto;
 import com.moneymoment.lending.dtos.LoanResponseDto;
 import com.moneymoment.lending.dtos.LoanTimelineEventDto;
@@ -73,6 +74,13 @@ public class LoanController {
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.success(loanService.fetchLoansByCustomerId(customerId, page, size),
                 "Successfully fetched loans for customer"));
+    }
+
+    // get EMI schedule for a loan
+    @GetMapping("/{loanNumber}/emi-schedule")
+    public ResponseEntity<ApiResponse<List<EmiScheduleResponseDto>>> getEmiSchedule(@PathVariable String loanNumber) {
+        return ResponseEntity.ok(ApiResponse.success(loanService.fetchEmiSchedule(loanNumber),
+                "EMI schedule fetched successfully"));
     }
 
     // get loan timeline
