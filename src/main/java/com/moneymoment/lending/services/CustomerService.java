@@ -11,11 +11,13 @@ import com.moneymoment.lending.dtos.CustomerResponseDto;
 import com.moneymoment.lending.entities.CustomerEntity;
 import com.moneymoment.lending.entities.UserEntity;
 import com.moneymoment.lending.repos.CustomerRepository;
+import com.moneymoment.lending.repos.LoanRepo;
 import com.moneymoment.lending.repos.UserRepository;
 
 import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.common.spec.CustomerSpecification;
 
+import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -25,12 +27,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CustomerService {
 
+    private static final List<String> INACTIVE_STATUSES = List.of("CLOSED", "REJECTED");
+    private static final List<String> OVERDUE_STATUSES  = List.of("OVERDUE", "NPA");
+
     private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
+    private final LoanRepo loanRepo;
 
-    CustomerService(CustomerRepository customerRepository, UserRepository userRepository) {
+    CustomerService(CustomerRepository customerRepository, UserRepository userRepository, LoanRepo loanRepo) {
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
+        this.loanRepo = loanRepo;
     }
 
     @Transactional(readOnly = true)
@@ -144,6 +151,11 @@ public class CustomerService {
             dto.setRelationshipManagerEmployeeId(entity.getRelationshipManager().getEmployeeId());
             dto.setRelationshipManagerName(entity.getRelationshipManager().getFullName());
         }
+
+        // Loan summary fields
+        dto.setCreditScore(entity.getCreditScore());
+        dto.setActiveLoanCount(loanRepo.countByCustomer_IdAndLoanStatus_CodeNotIn(entity.getId(), INACTIVE_STATUSES));
+        dto.setHasOverdue(loanRepo.existsByCustomer_IdAndLoanStatus_CodeIn(entity.getId(), OVERDUE_STATUSES));
 
         return dto;
     }

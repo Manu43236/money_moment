@@ -32,4 +32,9 @@ public class CustomerResponseDto {
     private String createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Loan summary — computed fields
+    private Double creditScore;
+    private Integer activeLoanCount;
+    private Boolean hasOverdue;
 }

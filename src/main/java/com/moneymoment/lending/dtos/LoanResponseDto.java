@@ -44,6 +44,17 @@ public class LoanResponseDto {
     private String loanStatusCode;
     private String loanStatusName;
 
+    // LMS Tracking Fields
+    private Integer numberOfPaidEmis;
+    private Integer numberOfOverdueEmis;
+    private Integer currentDpd;
+    private Integer highestDpd;
+    private Double totalOverdueAmount;
+    private Double totalPenaltyAmount;
+    private java.time.LocalDate nextDueDate;
+    private java.time.LocalDate lastPaymentDate;
+    private java.time.LocalDate firstEmiDueDate;
+
     // Dates
     private LocalDateTime appliedDate;
     private LocalDateTime approvedDate;

@@ -190,9 +190,22 @@ public class LoanService {
                 dto.setDisbursementAccountNumber(loan.getDisbursementAccountNumber());
                 dto.setDisbursementIfsc(loan.getDisbursementIfsc());
 
+                // LMS Tracking Fields
+                dto.setNumberOfPaidEmis(loan.getNumberOfPaidEmis());
+                dto.setNumberOfOverdueEmis(loan.getNumberOfOverdueEmis());
+                dto.setCurrentDpd(loan.getCurrentDpd());
+                dto.setHighestDpd(loan.getHighestDpd());
+                dto.setTotalOverdueAmount(loan.getTotalOverdueAmount());
+                dto.setTotalPenaltyAmount(loan.getTotalPenaltyAmount());
+                dto.setNextDueDate(loan.getNextDueDate());
+                dto.setLastPaymentDate(loan.getLastPaymentDate());
+                dto.setFirstEmiDueDate(loan.getFirstEmiDueDate());
+
                 // Audit
                 dto.setCreatedAt(loan.getCreatedAt());
                 dto.setUpdatedAt(loan.getUpdatedAt());
+                dto.setOriginatingBranchCode(loan.getOriginatingBranchCode());
+                dto.setCreatedBy(loan.getCreatedBy());
 
                 return dto;
         }

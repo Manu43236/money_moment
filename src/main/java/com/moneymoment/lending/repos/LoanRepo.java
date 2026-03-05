@@ -20,4 +20,8 @@ public interface LoanRepo extends JpaRepository<LoanEntity, Long>, JpaSpecificat
 
     Page<LoanEntity> findByCustomerId(Long customerId, Pageable pageable);
 
+    int countByCustomer_IdAndLoanStatus_CodeNotIn(Long customerId, List<String> excludedCodes);
+
+    boolean existsByCustomer_IdAndLoanStatus_CodeIn(Long customerId, List<String> codes);
+
 }
