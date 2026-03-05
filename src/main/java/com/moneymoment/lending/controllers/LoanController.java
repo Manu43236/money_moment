@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
+import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.dtos.LoanRequestDto;
 import com.moneymoment.lending.dtos.LoanResponseDto;
 import com.moneymoment.lending.dtos.LoanTimelineEventDto;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/loans")
@@ -39,8 +41,15 @@ public class LoanController {
 
     // get all loans
     @GetMapping()
-    public ResponseEntity<ApiResponse<List<LoanResponseDto>>> getMethodName() {
-        return ResponseEntity.ok(ApiResponse.success(loanService.fetchAllLoans(), "Successfully fetched loans"));
+    public ResponseEntity<ApiResponse<PagedResponse<LoanResponseDto>>> getMethodName(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) String loanTypeCode) {
+        return ResponseEntity.ok(ApiResponse.success(
+                loanService.fetchAllLoans(page, size, status, customerId, loanTypeCode),
+                "Successfully fetched loans"));
     }
 
     // get loan by id

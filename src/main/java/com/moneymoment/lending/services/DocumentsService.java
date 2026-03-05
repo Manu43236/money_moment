@@ -1,10 +1,13 @@
 package com.moneymoment.lending.services;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.moneymoment.lending.common.constants.AppConstants;
 import com.moneymoment.lending.common.enums.DocumentStatusEnums;
@@ -27,36 +30,33 @@ public class DocumentsService {
     private final CustomerRepository customerRepository;
     private final MasterService masterService;
     private final DocumentRepository documentRepository;
+    private final R2StorageService r2StorageService;
 
     DocumentsService(LoanRepo loanRepo, CustomerRepository customerRepository, MasterService masterService,
-            DocumentRepository documentRepository) {
+            DocumentRepository documentRepository, R2StorageService r2StorageService) {
         this.loanRepo = loanRepo;
         this.customerRepository = customerRepository;
         this.masterService = masterService;
         this.documentRepository = documentRepository;
-
+        this.r2StorageService = r2StorageService;
     }
 
     @Transactional
-    public DocumentResponseDto uploadDocument(DocumentUploadRequestDto request) {
+    public DocumentResponseDto uploadDocument(MultipartFile file, String customerNumber, String loanNumber,
+            String documentTypeCode) {
 
         DocumentEntity documentEntity = new DocumentEntity();
 
         // Step 1: Validate and set customer/loan
-        if (request.getLoanNumber() != null && !request.getLoanNumber().isEmpty()) {
-            // Upload for loan
-            var loan = loanRepo.findByLoanNumber(request.getLoanNumber())
-                    .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", request.getLoanNumber()));
-
+        if (loanNumber != null && !loanNumber.isEmpty()) {
+            var loan = loanRepo.findByLoanNumber(loanNumber)
+                    .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", loanNumber));
             documentEntity.setLoan(loan);
             documentEntity.setCustomer(loan.getCustomer());
 
-        } else if (request.getCustomerNumber() != null && !request.getCustomerNumber().isEmpty()) {
-            // Upload for customer
-            var customer = customerRepository.findByCustomerNumber(request.getCustomerNumber())
-                    .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerNumber",
-                            request.getCustomerNumber()));
-
+        } else if (customerNumber != null && !customerNumber.isEmpty()) {
+            var customer = customerRepository.findByCustomerNumber(customerNumber)
+                    .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerNumber", customerNumber));
             documentEntity.setCustomer(customer);
             documentEntity.setLoan(null);
 
@@ -64,19 +64,15 @@ public class DocumentsService {
             throw new ValidationException("Either loanNumber or customerNumber must be provided");
         }
 
-        // Step 2: Fetch document type
-        var documentType = masterService.getDocumentTypesByCode(request.getDocumentTypeCode());
+        // Step 2: Fetch and validate document type
+        var documentType = masterService.getDocumentTypesByCode(documentTypeCode);
 
-        // Step 3: Validate applicableFor
         if (documentEntity.getLoan() != null) {
-            // Uploading for loan - validate document type allows it
-            if (!documentType.getApplicableFor().equals("LOAN")
-                    && !documentType.getApplicableFor().equals("BOTH")) {
+            if (!documentType.getApplicableFor().equals("LOAN") && !documentType.getApplicableFor().equals("BOTH")) {
                 throw new ValidationException(
                         documentType.getName() + " cannot be uploaded for loan. It's only for customer.");
             }
         } else {
-            // Uploading for customer - validate document type allows it
             if (!documentType.getApplicableFor().equals("CUSTOMER")
                     && !documentType.getApplicableFor().equals("BOTH")) {
                 throw new ValidationException(
@@ -84,29 +80,60 @@ public class DocumentsService {
             }
         }
 
-        // Step 4: Generate document number based on context
+        // Step 3: Generate document number
+        String docNumber = documentEntity.getLoan() != null
+                ? NumberGenerator.numberGeneratorWithPrifix(AppConstants.LOAN_DOCUMENT_NUMBER_PREFIX)
+                : NumberGenerator.numberGeneratorWithPrifix(AppConstants.USER_DOCUMENT_NUMBER_PREFIX);
+        documentEntity.setDocumentNumber(docNumber);
+
+        // Step 4: Build Cloudinary key and upload
+        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "file";
+        String contentType = file.getContentType() != null ? file.getContentType() : "";
+        String ext = originalFilename.contains(".")
+                ? originalFilename.substring(originalFilename.lastIndexOf('.'))
+                : "";
+
+        // image/* → images folder, everything else → docs folder
+        String fileCategory = contentType.startsWith("image/") ? "images" : "docs";
+
+        // Last 4 chars of customer/loan number for folder name
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String cloudinaryKey;
+        String displayFileName;
+
         if (documentEntity.getLoan() != null) {
-            documentEntity.setDocumentNumber(
-                    NumberGenerator.numberGeneratorWithPrifix(AppConstants.LOAN_DOCUMENT_NUMBER_PREFIX));
+            String last4 = loanNumber.length() >= 4
+                    ? loanNumber.substring(loanNumber.length() - 4) : loanNumber;
+            // public_id WITHOUT extension — Cloudinary appends it automatically
+            cloudinaryKey = "loans/" + fileCategory + "/ln_" + last4
+                    + "/" + documentTypeCode + "_" + timestamp;
         } else {
-            documentEntity.setDocumentNumber(
-                    NumberGenerator.numberGeneratorWithPrifix(AppConstants.USER_DOCUMENT_NUMBER_PREFIX));
+            String last4 = customerNumber.length() >= 4
+                    ? customerNumber.substring(customerNumber.length() - 4) : customerNumber;
+            cloudinaryKey = "customers/" + fileCategory + "/cust_" + last4
+                    + "/" + documentTypeCode + "_" + timestamp;
         }
 
-        // Step 5: Set document type and file info
-        documentEntity.setDocumentType(documentType);
-        documentEntity.setFileName(request.getFileName());
-        documentEntity.setFileUrl(request.getFileUrl());
-        documentEntity.setFilePath(request.getFileUrl()); // For now, same as fileUrl
-        documentEntity.setFileType(request.getFileType());
-        documentEntity.setFileSizeKb(request.getFileSizeKb());
+        displayFileName = cloudinaryKey.substring(cloudinaryKey.lastIndexOf('/') + 1) + ext;
 
-        // Step 6: Set status
+        String fileUrl;
+        try {
+            fileUrl = r2StorageService.upload(cloudinaryKey, file);
+        } catch (IOException e) {
+            throw new com.moneymoment.lending.common.exception.BusinessLogicException(
+                    "Failed to upload file to storage: " + e.getMessage());
+        }
+
+        // Step 5: Set document fields
+        documentEntity.setDocumentType(documentType);
+        documentEntity.setFileName(displayFileName);
+        documentEntity.setFilePath(cloudinaryKey);
+        documentEntity.setFileUrl(fileUrl);
+        documentEntity.setFileType(contentType);
+        documentEntity.setFileSizeKb(file.getSize() / 1024);
         documentEntity.setUploadStatus(DocumentStatusEnums.UPLOADED);
 
-        // Step 7: Save and return
         documentEntity = documentRepository.save(documentEntity);
-
         return toDto(documentEntity);
     }
 

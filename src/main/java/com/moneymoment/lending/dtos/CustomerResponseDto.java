@@ -27,6 +27,8 @@ public class CustomerResponseDto {
     private String homeBranchCode;
     private String relationshipManagerEmployeeId;
     private String relationshipManagerName;
+    private Boolean isActive;
+    private LocalDateTime deactivatedAt;
     private String createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

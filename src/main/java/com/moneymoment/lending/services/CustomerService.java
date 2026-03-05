@@ -13,8 +13,12 @@ import com.moneymoment.lending.entities.UserEntity;
 import com.moneymoment.lending.repos.CustomerRepository;
 import com.moneymoment.lending.repos.UserRepository;
 
-import java.util.List;
+import com.moneymoment.lending.common.response.PagedResponse;
+import com.moneymoment.lending.common.spec.CustomerSpecification;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,10 +80,15 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
-    public List<CustomerResponseDto> fetchAllUsers() {
-        return customerRepository.findAll().stream()
-                .map(this::toDto)
-                .toList();
+    public PagedResponse<CustomerResponseDto> fetchAllUsers(int page, int size, String name, String employmentType, String email) {
+        Specification<CustomerEntity> spec = Specification.allOf(
+                CustomerSpecification.isActive(),
+                CustomerSpecification.nameLike(name),
+                CustomerSpecification.hasEmploymentType(employmentType),
+                CustomerSpecification.emailLike(email));
+
+        var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return PagedResponse.of(customerRepository.findAll(spec, pageable).map(this::toDto));
     }
 
     @Transactional
@@ -102,8 +111,12 @@ public class CustomerService {
     }
 
     @Transactional
-    public void deleteCustomer(Long id) {
-        customerRepository.deleteById(id);
+    public void deactivateCustomer(Long id) {
+        CustomerEntity customer = customerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", id));
+        customer.setIsActive(false);
+        customer.setDeactivatedAt(java.time.LocalDateTime.now());
+        customerRepository.save(customer);
     }
 
     private CustomerResponseDto toDto(CustomerEntity entity) {
@@ -121,6 +134,8 @@ public class CustomerService {
         dto.setEmploymentType(entity.getEmploymentType());
         dto.setMonthlySalary(entity.getMonthlySalary());
         dto.setHomeBranchCode(entity.getHomeBranchCode());
+        dto.setIsActive(entity.getIsActive());
+        dto.setDeactivatedAt(entity.getDeactivatedAt());
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());

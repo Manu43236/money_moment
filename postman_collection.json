@@ -302,7 +302,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Arjun Mehta\",\n  \"phone\": \"9876501001\",\n  \"dob\": \"1988-07-15T00:00:00\",\n  \"email\": \"arjun.mehta@gmail.com\",\n  \"pan\": \"ABCPM1234F\",\n  \"aadhar\": \"234567890123\",\n  \"address\": \"Flat 302, Oberoi Heights, Andheri West, Mumbai, Maharashtra - 400053\",\n  \"occupation\": \"Software Engineer\",\n  \"employmentType\": \"SALARIED\",\n  \"monthlySalary\": 125000,\n  \"createdBy\": \"HDFC_EMP007\"\n}"
+              "raw": "{\n  \"name\": \"Arjun Mehta\",\n  \"phone\": \"9876501001\",\n  \"dob\": \"1988-07-15T00:00:00\",\n  \"email\": \"arjun.mehta@gmail.com\",\n  \"pan\": \"ABCPM1234F\",\n  \"aadhar\": \"234567890123\",\n  \"address\": \"Flat 302, Oberoi Heights, Andheri West, Mumbai, Maharashtra - 400053\",\n  \"occupation\": \"Software Engineer\",\n  \"employmentType\": \"SALARIED\",\n  \"monthlySalary\": 125000,\n  \"homeBranchCode\": \"MUM001\",\n  \"relationshipManagerEmployeeId\": \"EMP001\",\n  \"createdBy\": \"EMP002\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/customers", "host": ["{{baseUrl}}"], "path": ["api", "customers"] }
           }
@@ -312,7 +312,18 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/customers", "host": ["{{baseUrl}}"], "path": ["api", "customers"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/customers?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "name", "value": "", "disabled": true },
+                { "key": "employmentType", "value": "SALARIED", "disabled": true },
+                { "key": "email", "value": "", "disabled": true }
+              ]
+            }
           }
         },
         {
@@ -330,13 +341,13 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Arjun Mehta\",\n  \"phone\": \"9876501001\",\n  \"dob\": \"1988-07-15T00:00:00\",\n  \"email\": \"arjun.mehta@gmail.com\",\n  \"pan\": \"ABCPM1234F\",\n  \"aadhar\": \"234567890123\",\n  \"address\": \"Flat 302, Oberoi Heights, Andheri West, Mumbai\",\n  \"occupation\": \"Senior Software Engineer\",\n  \"employmentType\": \"SALARIED\",\n  \"monthlySalary\": 150000,\n  \"createdBy\": \"HDFC_EMP007\"\n}"
+              "raw": "{\n  \"name\": \"Arjun Mehta\",\n  \"phone\": \"9876501001\",\n  \"dob\": \"1988-07-15T00:00:00\",\n  \"email\": \"arjun.mehta@gmail.com\",\n  \"pan\": \"ABCPM1234F\",\n  \"aadhar\": \"234567890123\",\n  \"address\": \"Flat 302, Oberoi Heights, Andheri West, Mumbai\",\n  \"occupation\": \"Senior Software Engineer\",\n  \"employmentType\": \"SALARIED\",\n  \"monthlySalary\": 150000,\n  \"homeBranchCode\": \"MUM001\",\n  \"relationshipManagerEmployeeId\": \"EMP001\",\n  \"createdBy\": \"EMP002\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/customers/1", "host": ["{{baseUrl}}"], "path": ["api", "customers", "1"] }
           }
         },
         {
-          "name": "Delete Customer",
+          "name": "Deactivate Customer",
           "request": {
             "method": "DELETE",
             "header": [],
@@ -365,7 +376,18 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/loans", "host": ["{{baseUrl}}"], "path": ["api", "loans"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/loans?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "loans"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "status", "value": "ACTIVE", "disabled": true },
+                { "key": "customerId", "value": "1", "disabled": true },
+                { "key": "loanTypeCode", "value": "HOME_LOAN", "disabled": true }
+              ]
+            }
           }
         },
         {
@@ -390,6 +412,14 @@
             "method": "GET",
             "header": [],
             "url": { "raw": "{{baseUrl}}/api/loans/customer/1", "host": ["{{baseUrl}}"], "path": ["api", "loans", "customer", "1"] }
+          }
+        },
+        {
+          "name": "Get Loan Timeline",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/loans/LN2026-0001/timeline", "host": ["{{baseUrl}}"], "path": ["api", "loans", "LN2026-0001", "timeline"] }
           }
         }
       ]
@@ -431,13 +461,33 @@
       "name": "Documents",
       "item": [
         {
-          "name": "Upload Document",
+          "name": "Upload Document (Customer)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"customerNumber\": \"CUST2026-0001\",\n  \"loanNumber\": \"LN2026-0001\",\n  \"documentTypeCode\": \"PAN_CARD\",\n  \"fileName\": \"arjun_pan.pdf\",\n  \"fileUrl\": \"https://storage.example.com/docs/arjun_pan.pdf\",\n  \"fileType\": \"PDF\",\n  \"fileSizeKb\": 250\n}"
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] },
+                { "key": "documentTypeCode", "value": "PAN_CARD", "type": "text" },
+                { "key": "customerNumber", "value": "CUST2026-0001", "type": "text" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api", "documents"] }
+          }
+        },
+        {
+          "name": "Upload Document (Loan)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] },
+                { "key": "documentTypeCode", "value": "INCOME_PROOF", "type": "text" },
+                { "key": "loanNumber", "value": "LN2026-0001", "type": "text" }
+              ]
             },
             "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api", "documents"] }
           }

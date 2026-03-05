@@ -1,7 +1,5 @@
 package com.moneymoment.lending.controllers;
 
-import java.util.List;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,12 +7,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
+import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.dtos.CustomerRequestDto;
 import com.moneymoment.lending.dtos.CustomerResponseDto;
 import com.moneymoment.lending.services.CustomerService;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
@@ -29,9 +29,15 @@ public class CustomerController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<CustomerResponseDto>>> fetchAllUsers() {
-        return ResponseEntity
-                .ok(ApiResponse.success(customerService.fetchAllUsers(), "Successfully fetched all customers"));
+    public ResponseEntity<ApiResponse<PagedResponse<CustomerResponseDto>>> fetchAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String employmentType,
+            @RequestParam(required = false) String email) {
+        return ResponseEntity.ok(ApiResponse.success(
+                customerService.fetchAllUsers(page, size, name, employmentType, email),
+                "Successfully fetched all customers"));
     }
 
     @PostMapping
@@ -58,8 +64,8 @@ public class CustomerController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteCustomer(@PathVariable Long id) {
-        customerService.deleteCustomer(id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Successfully deleted customer"));
+    public ResponseEntity<ApiResponse<Void>> deactivateCustomer(@PathVariable Long id) {
+        customerService.deactivateCustomer(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Customer deactivated successfully"));
     }
 }

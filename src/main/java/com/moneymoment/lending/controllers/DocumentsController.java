@@ -5,14 +5,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
 import com.moneymoment.lending.dtos.DocumentResponseDto;
-import com.moneymoment.lending.dtos.DocumentUploadRequestDto;
 import com.moneymoment.lending.dtos.DocumentVerifyDto;
 import com.moneymoment.lending.services.DocumentsService;
 
 import java.util.List;
 
-import javax.swing.text.Document;
-
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/documents")
@@ -36,12 +35,16 @@ public class DocumentsController {
         return ResponseEntity.ok(ApiResponse.success(documentsService.getAllDocuments(), "API is working"));
     }
 
-    @PostMapping()
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<DocumentResponseDto>> uploadDocuments(
-            @RequestBody DocumentUploadRequestDto request) {
+            @RequestParam MultipartFile file,
+            @RequestParam(required = false) String customerNumber,
+            @RequestParam(required = false) String loanNumber,
+            @RequestParam String documentTypeCode) {
 
-        return ResponseEntity
-                .ok(ApiResponse.success(documentsService.uploadDocument(request), "Document uploaded successfully"));
+        return ResponseEntity.ok(ApiResponse.success(
+                documentsService.uploadDocument(file, customerNumber, loanNumber, documentTypeCode),
+                "Document uploaded successfully"));
     }
 
     // update docuement

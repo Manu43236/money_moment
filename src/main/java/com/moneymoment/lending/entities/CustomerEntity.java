@@ -78,6 +78,12 @@ public class CustomerEntity {
     @JoinColumn(name = "relationship_manager_id")
     private UserEntity relationshipManager;
 
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+
+    @Column(name = "deactivated_at")
+    private LocalDateTime deactivatedAt;
+
     // audit fields
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -94,6 +100,7 @@ public class CustomerEntity {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (isActive == null) isActive = true;
     }
 
     @PreUpdate

@@ -7,9 +7,15 @@ import com.moneymoment.lending.master.repos.LoneTypeRepo;
 import com.moneymoment.lending.repos.CustomerRepository;
 import com.moneymoment.lending.repos.LoanRepo;
 
+import com.moneymoment.lending.common.response.PagedResponse;
+import com.moneymoment.lending.common.spec.LoanSpecification;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -194,10 +200,14 @@ public class LoanService {
 
         // get all loans - for admin dashboard
         @Transactional
-        public List<LoanResponseDto> fetchAllLoans() {
-                return loanRepo.findAll().stream()
-                                .map(loan -> toDto(loan))
-                                .toList();
+        public PagedResponse<LoanResponseDto> fetchAllLoans(int page, int size, String status, Long customerId, String loanTypeCode) {
+                Specification<LoanEntity> spec = Specification.allOf(
+                                LoanSpecification.hasStatus(status),
+                                LoanSpecification.hasCustomerId(customerId),
+                                LoanSpecification.hasLoanTypeCode(loanTypeCode));
+
+                var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+                return PagedResponse.of(loanRepo.findAll(spec, pageable).map(this::toDto));
         }
 
         // get loans by customer id - for customer dashboard
