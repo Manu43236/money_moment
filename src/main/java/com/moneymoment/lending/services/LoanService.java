@@ -265,6 +265,7 @@ public class LoanService {
                                 .stream().map(this::toEmiDto).collect(Collectors.toList());
         }
 
+
         private EmiScheduleResponseDto toEmiDto(EmiScheduleEntity e) {
                 EmiScheduleResponseDto dto = new EmiScheduleResponseDto();
                 dto.setId(e.getId());
