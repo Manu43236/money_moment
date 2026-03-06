@@ -1,6 +1,7 @@
 package com.moneymoment.lending.services;
 
 import com.moneymoment.lending.common.constants.AppConstants;
+import com.moneymoment.lending.common.enums.DocumentStatusEnums;
 import com.moneymoment.lending.common.enums.LoanStatusEnums;
 import com.moneymoment.lending.common.exception.BusinessLogicException;
 import com.moneymoment.lending.common.exception.ResourceNotFoundException;
@@ -8,14 +9,17 @@ import com.moneymoment.lending.common.utils.NumberGenerator;
 import com.moneymoment.lending.dtos.CreditAssessmentRequestDto;
 import com.moneymoment.lending.dtos.CreditAssessmentResponseDto;
 import com.moneymoment.lending.entities.CreditAssessmentEntity;
+import com.moneymoment.lending.entities.DocumentEntity;
 import com.moneymoment.lending.entities.LoanEntity;
 import com.moneymoment.lending.master.entities.LoanStatusesEntity;
 import com.moneymoment.lending.master.repos.LoanPurposesRepo;
 import com.moneymoment.lending.master.repos.LoanStatusesRepo;
 import com.moneymoment.lending.repos.CreditAssessmentRepository;
+import com.moneymoment.lending.repos.DocumentRepository;
 import com.moneymoment.lending.repos.LoanRepo;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,12 +33,15 @@ public class CreditAssessmentService {
 
     private final CreditAssessmentRepository creditAssessmentRepository;
 
-    
+    private final DocumentRepository documentRepository;
+
     CreditAssessmentService(CreditAssessmentRepository creditAssessmentRepository, LoanRepo loanRepo,
-            LoanPurposesRepo loanPurposesRepo, LoanStatusesRepo loanStatusesRepo) {
+            LoanPurposesRepo loanPurposesRepo, LoanStatusesRepo loanStatusesRepo,
+            DocumentRepository documentRepository) {
         this.creditAssessmentRepository = creditAssessmentRepository;
         this.loanRepo = loanRepo;
         this.loanStatusesRepo = loanStatusesRepo;
+        this.documentRepository = documentRepository;
     }
 
     @Transactional
@@ -45,6 +52,20 @@ public class CreditAssessmentService {
 
         if (!loanEntity.getLoanStatus().getCode().equals(LoanStatusEnums.INITIATED)) {
             throw new BusinessLogicException("Loan is not in assessment stage");
+        }
+
+        // Validate all documents are verified before proceeding
+        List<DocumentEntity> documents = documentRepository.findByLoanId(loanEntity.getId());
+        if (documents.isEmpty()) {
+            throw new BusinessLogicException(
+                    "No documents found for this loan. Upload and verify all required documents before credit assessment.");
+        }
+        long unverifiedCount = documents.stream()
+                .filter(d -> !DocumentStatusEnums.VERIFIED.equals(d.getUploadStatus()))
+                .count();
+        if (unverifiedCount > 0) {
+            throw new BusinessLogicException(
+                    unverifiedCount + " document(s) are not yet verified. All documents must be verified before credit assessment.");
         }
 
         CreditAssessmentEntity creditAssessmentEntity = new CreditAssessmentEntity();

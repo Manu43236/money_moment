@@ -37,6 +37,13 @@ public class CollateralService {
         LoanEntity loan = loanRepo.findByLoanNumber(request.getLoanNumber())
                 .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", request.getLoanNumber()));
 
+        // Collateral can only be registered after loan is approved — real-world fintech rule
+        if (!loan.getLoanStatus().getCode().equals(LoanStatusEnums.APPROVED)) {
+            throw new BusinessLogicException(
+                    "Collateral can only be registered for approved loans. Current status: "
+                            + loan.getLoanStatus().getCode());
+        }
+
         if (!loan.getLoanType().getCollateralRequired()) {
             throw new BusinessLogicException(
                     "Loan type " + loan.getLoanType().getName() + " does not require collateral");

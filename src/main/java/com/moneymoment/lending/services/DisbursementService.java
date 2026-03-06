@@ -4,8 +4,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.moneymoment.lending.common.response.PagedResponse;
 
 import com.moneymoment.lending.common.constants.AppConstants;
 import com.moneymoment.lending.common.enums.LoanStatusEnums;
@@ -21,6 +26,7 @@ import com.moneymoment.lending.entities.LoanEntity;
 import com.moneymoment.lending.entities.UserEntity;
 import com.moneymoment.lending.master.entities.LoanStatusesEntity;
 import com.moneymoment.lending.master.repos.LoanStatusesRepo;
+import com.moneymoment.lending.repos.CollateralDetailsRepository;
 import com.moneymoment.lending.repos.DisbursementRepository;
 import com.moneymoment.lending.repos.LoanRepo;
 import com.moneymoment.lending.repos.UserRepository;
@@ -35,17 +41,19 @@ public class DisbursementService {
     private final LoanRepo loanRepo;
     private final UserRepository userRepository;
     private final LoanStatusesRepo loanStatusesRepo;
+    private final CollateralDetailsRepository collateralDetailsRepository;
     private EMIScheduleGenerationService emiScheduleGenerationService;
 
     public DisbursementService(DisbursementRepository disbursementRepository, LoanRepo loanRepo,
             UserRepository userRepository, LoanStatusesRepo loanStatusesRepo,
+            CollateralDetailsRepository collateralDetailsRepository,
             EMIScheduleGenerationService emiScheduleGenerationService) {
         this.disbursementRepository = disbursementRepository;
         this.loanRepo = loanRepo;
         this.userRepository = userRepository;
         this.loanStatusesRepo = loanStatusesRepo;
-        this.emiScheduleGenerationService = emiScheduleGenerationService; // ← Add this
-
+        this.collateralDetailsRepository = collateralDetailsRepository;
+        this.emiScheduleGenerationService = emiScheduleGenerationService;
     }
 
     @Transactional
@@ -83,7 +91,17 @@ public class DisbursementService {
                             + existingDisbursement.get().getDisbursementNumber());
         }
 
-        // Step 4: Fetch Employee
+        // Step 4: For secured loans, collateral must be registered before disbursement
+        if (loan.getLoanType().getCollateralRequired()) {
+            boolean collateralExists = collateralDetailsRepository.findByLoanId(loan.getId()).isPresent();
+            if (!collateralExists) {
+                throw new BusinessLogicException(
+                        "Collateral must be registered before disbursing a secured loan. "
+                                + "Please register collateral for loan: " + loan.getLoanNumber());
+            }
+        }
+
+        // Step 5: Fetch Employee
         UserEntity disbursedBy = userRepository.findByEmployeeId(request.getDisbursedByEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "employeeId",
                         request.getDisbursedByEmployeeId()));
@@ -170,6 +188,14 @@ public class DisbursementService {
         } else {
             return new PaymentGatewayResponse("FAILED", null, null, "Invalid account number or IFSC code");
         }
+    }
+
+    // Get All Disbursements (paginated)
+    public PagedResponse<DisbursementResponseDto> getAllDisbursements(int page, int size) {
+        Page<DisbursementResponseDto> dtoPage = disbursementRepository
+                .findAll(PageRequest.of(page, size, Sort.by("createdAt").descending()))
+                .map(this::toDto);
+        return PagedResponse.of(dtoPage);
     }
 
     // Get Disbursement by Loan
