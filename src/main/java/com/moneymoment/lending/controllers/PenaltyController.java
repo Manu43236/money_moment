@@ -25,6 +25,16 @@ public class PenaltyController {
         this.penaltyService = penaltyService;
     }
 
+    @GetMapping
+    public ResponseEntity<ApiResponse<PagedResponse<LoanPenaltyEntity>>> getAllPenalties(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        penaltyService.getAllPenalties(page, size),
+                        "Penalties fetched successfully"));
+    }
+
     @PostMapping("/apply")
     public ResponseEntity<ApiResponse<LoanPenaltyEntity>> applyPenalty(
             @RequestParam Long emiScheduleId,

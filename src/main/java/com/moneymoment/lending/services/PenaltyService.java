@@ -112,6 +112,12 @@ public class PenaltyService {
     }
 
     @Transactional
+    public PagedResponse<LoanPenaltyEntity> getAllPenalties(int page, int size) {
+        var pageable = PageRequest.of(page, size, Sort.by("appliedDate").descending());
+        return PagedResponse.of(loanPenaltyRepository.findAll(pageable));
+    }
+
+    @Transactional
     public PagedResponse<LoanPenaltyEntity> getPenaltiesByLoan(String loanNumber, int page, int size) {
         LoanEntity loan = loanRepo.findByLoanNumber(loanNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", loanNumber));
