@@ -8,10 +8,7 @@ import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.dtos.AssignRolesDto;
 import com.moneymoment.lending.dtos.UserRequestDto;
 import com.moneymoment.lending.dtos.UserResponseDto;
-import com.moneymoment.lending.repos.RoleRepository;
 import com.moneymoment.lending.services.UserService;
-
-import jakarta.websocket.server.PathParam;
 
 import java.util.List;
 
@@ -79,7 +76,8 @@ public class UserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(
-                ApiResponse.success(userService.getUsersByRoleCode(roleCode, page, size), "All " + roleCode + " users fetched"));
+                ApiResponse.success(userService.getUsersByRoleCode(roleCode, page, size),
+                        "All " + roleCode + " users fetched"));
     }
 
     // get all users by branchCode
