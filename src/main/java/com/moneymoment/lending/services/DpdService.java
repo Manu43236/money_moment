@@ -114,22 +114,25 @@ public class DpdService {
         loan.setNumberOfOverdueEmis((int) overdueCount);
         loan.setTotalOverdueAmount(totalOverdue);
 
-        // 7. Determine loan status
-        String newStatusCode;
-        if (highestDpd == 0) {
-            newStatusCode = "CURRENT"; // Need to add this status
-        } else if (highestDpd < 90) {
-            newStatusCode = "OVERDUE";
-        } else {
-            newStatusCode = "NPA";
-        }
+        // 7. Determine loan status — skip if loan is already CLOSED
+        String currentCode = loan.getLoanStatus().getCode();
+        if (!currentCode.equals("CLOSED")) {
+            String newStatusCode;
+            if (highestDpd == 0) {
+                newStatusCode = "ACTIVE";
+            } else if (highestDpd < 90) {
+                newStatusCode = "OVERDUE";
+            } else {
+                newStatusCode = "NPA";
+            }
 
-        // 8. Update loan status
-        LoanStatusesEntity newStatus = loanStatusesRepo.findByCode(newStatusCode)
-                .orElse(null); // Skip if status not found
+            // 8. Update loan status
+            LoanStatusesEntity newStatus = loanStatusesRepo.findByCode(newStatusCode)
+                    .orElse(null);
 
-        if (newStatus != null) {
-            loan.setLoanStatus(newStatus);
+            if (newStatus != null) {
+                loan.setLoanStatus(newStatus);
+            }
         }
 
         loanRepo.save(loan);
@@ -137,11 +140,16 @@ public class DpdService {
 
     @Transactional
     public void processAllOverdueEmis() {
-        // 1. Get all DISBURSED loans
+        // 1. Get all active lifecycle loans (excluding terminal statuses)
         List<LoanEntity> loans = loanRepo.findAll().stream()
-                .filter(loan -> loan.getLoanStatus().getCode().equals("DISBURSED")
-                        || loan.getLoanStatus().getCode().equals("CURRENT")
-                        || loan.getLoanStatus().getCode().equals("OVERDUE"))
+                .filter(loan -> {
+                    String code = loan.getLoanStatus().getCode();
+                    return code.equals("DISBURSED")
+                            || code.equals("CURRENT")
+                            || code.equals("ACTIVE")
+                            || code.equals("OVERDUE")
+                            || code.equals("NPA");
+                })
                 .toList();
 
         // 2. Process each loan
