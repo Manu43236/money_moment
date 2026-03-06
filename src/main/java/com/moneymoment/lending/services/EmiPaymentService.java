@@ -1,7 +1,11 @@
 package com.moneymoment.lending.services;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +15,8 @@ import com.moneymoment.lending.common.enums.PaymentStatusEnums;
 import com.moneymoment.lending.common.enums.PaymentTypeEnums;
 import com.moneymoment.lending.common.exception.BusinessLogicException;
 import com.moneymoment.lending.common.exception.ResourceNotFoundException;
+import com.moneymoment.lending.common.response.PagedResponse;
+import com.moneymoment.lending.common.spec.EmiPaymentSpecification;
 import com.moneymoment.lending.common.utils.NumberGenerator;
 import com.moneymoment.lending.dtos.PaymentRequestDto;
 import com.moneymoment.lending.dtos.PaymentResponseDto;
@@ -33,6 +39,26 @@ public class EmiPaymentService {
         this.loanRepo = loanRepo;
         this.emiScheduleRepository = emiScheduleRepository;
         this.emiPaymentRepository = emiPaymentRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<PaymentResponseDto> getAll(
+            int page, int size,
+            LocalDate dateFrom, LocalDate dateTo,
+            String paymentStatus, String paymentMode,
+            String paymentType, String loanNumber) {
+
+        Specification<EmiPaymentEntity> spec = Specification.allOf(
+                EmiPaymentSpecification.paymentDateFrom(dateFrom),
+                EmiPaymentSpecification.paymentDateTo(dateTo),
+                EmiPaymentSpecification.hasPaymentStatus(paymentStatus),
+                EmiPaymentSpecification.hasPaymentMode(paymentMode),
+                EmiPaymentSpecification.hasPaymentType(paymentType),
+                EmiPaymentSpecification.hasLoanNumber(loanNumber));
+
+        var pageable = PageRequest.of(page, size, Sort.by("paymentDate").descending());
+        return PagedResponse.of(emiPaymentRepository.findAll(spec, pageable)
+                .map(p -> toDto(p, p.getEmiSchedule(), p.getLoan())));
     }
 
     @Transactional
