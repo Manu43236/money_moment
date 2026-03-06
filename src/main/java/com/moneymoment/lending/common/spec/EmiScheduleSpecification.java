@@ -16,12 +16,12 @@ public class EmiScheduleSpecification {
 
     public static Specification<EmiScheduleEntity> dueDateFrom(LocalDate from) {
         return (root, query, cb) ->
-                from == null ? null : cb.greaterThanOrEqualTo(root.get("dueDate"), from);
+                from == null ? null : cb.greaterThanOrEqualTo(root.<LocalDate>get("dueDate"), from);
     }
 
     public static Specification<EmiScheduleEntity> dueDateTo(LocalDate to) {
         return (root, query, cb) ->
-                to == null ? null : cb.lessThanOrEqualTo(root.get("dueDate"), to);
+                to == null ? null : cb.lessThanOrEqualTo(root.<LocalDate>get("dueDate"), to);
     }
 
     public static Specification<EmiScheduleEntity> hasLoanNumber(String loanNumber) {
@@ -31,11 +31,11 @@ public class EmiScheduleSpecification {
 
     public static Specification<EmiScheduleEntity> dpdFrom(Integer min) {
         return (root, query, cb) ->
-                min == null ? null : cb.greaterThanOrEqualTo(root.get("daysPastDue"), min);
+                min == null ? null : cb.greaterThanOrEqualTo(root.<Integer>get("daysPastDue"), min);
     }
 
     public static Specification<EmiScheduleEntity> dpdTo(Integer max) {
         return (root, query, cb) ->
-                max == null ? null : cb.lessThanOrEqualTo(root.get("daysPastDue"), max);
+                max == null ? null : cb.lessThanOrEqualTo(root.<Integer>get("daysPastDue"), max);
     }
 }
