@@ -31,14 +31,16 @@ import com.moneymoment.lending.repos.LoanRepo;
 public class EmiPaymentService {
 
     private final LoanRepo loanRepo;
-    private EmiScheduleRepository emiScheduleRepository;
-    private EmiPaymentRepository emiPaymentRepository;
+    private final EmiScheduleRepository emiScheduleRepository;
+    private final EmiPaymentRepository emiPaymentRepository;
+    private final DpdService dpdService;
 
     EmiPaymentService(LoanRepo loanRepo, EmiScheduleRepository emiScheduleRepository,
-            EmiPaymentRepository emiPaymentRepository) {
+            EmiPaymentRepository emiPaymentRepository, DpdService dpdService) {
         this.loanRepo = loanRepo;
         this.emiScheduleRepository = emiScheduleRepository;
         this.emiPaymentRepository = emiPaymentRepository;
+        this.dpdService = dpdService;
     }
 
     @Transactional(readOnly = true)
@@ -146,6 +148,12 @@ public class EmiPaymentService {
 
             loan = loanRepo.save(loan);
         }
+
+        // Update loan status immediately — no need to wait for EOD
+        dpdService.updateLoanStatus(loan.getId());
+
+        // Re-fetch loan to return updated status
+        loan = loanRepo.findById(loan.getId()).orElse(loan);
         return toDto(payment, emi, loan);
 
     }

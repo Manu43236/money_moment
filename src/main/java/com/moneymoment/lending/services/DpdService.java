@@ -119,7 +119,9 @@ public class DpdService {
         if (!currentCode.equals("CLOSED")) {
             String newStatusCode;
             if (highestDpd == 0) {
-                newStatusCode = "ACTIVE";
+                // Stay DISBURSED until at least one EMI is paid
+                int paidEmis = loan.getNumberOfPaidEmis() != null ? loan.getNumberOfPaidEmis() : 0;
+                newStatusCode = paidEmis > 0 ? "ACTIVE" : "DISBURSED";
             } else if (highestDpd < 90) {
                 newStatusCode = "OVERDUE";
             } else {
