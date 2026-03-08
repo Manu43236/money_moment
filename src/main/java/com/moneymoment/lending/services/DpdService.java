@@ -4,11 +4,11 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.moneymoment.lending.common.exception.ResourceNotFoundException;
+import com.moneymoment.lending.dtos.EodResultDto;
 import com.moneymoment.lending.entities.EmiScheduleEntity;
 import com.moneymoment.lending.entities.LoanEntity;
 import com.moneymoment.lending.master.entities.LoanStatusesEntity;
@@ -81,7 +81,7 @@ public class DpdService {
     }
 
     @Transactional
-    public void updateLoanStatus(Long loanId) {
+    public String updateLoanStatus(Long loanId) {
         // 1. Fetch loan
         LoanEntity loan = loanRepo.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan", "id", loanId));
@@ -116,11 +116,10 @@ public class DpdService {
         loan.setTotalOverdueAmount(totalOverdue);
 
         // 7. Determine loan status — skip if loan is already CLOSED
+        String newStatusCode = null;
         String currentCode = loan.getLoanStatus().getCode();
         if (!currentCode.equals("CLOSED")) {
-            String newStatusCode;
             if (highestDpd == 0) {
-                // Stay DISBURSED until at least one EMI is paid
                 int paidEmis = loan.getNumberOfPaidEmis() != null ? loan.getNumberOfPaidEmis() : 0;
                 newStatusCode = paidEmis > 0 ? "ACTIVE" : "DISBURSED";
             } else if (highestDpd < 90) {
@@ -129,21 +128,21 @@ public class DpdService {
                 newStatusCode = "NPA";
             }
 
-            // 8. Update loan status
-            LoanStatusesEntity newStatus = loanStatusesRepo.findByCode(newStatusCode)
-                    .orElse(null);
-
+            LoanStatusesEntity newStatus = loanStatusesRepo.findByCode(newStatusCode).orElse(null);
             if (newStatus != null) {
                 loan.setLoanStatus(newStatus);
             }
         }
 
         loanRepo.save(loan);
+        return newStatusCode;
     }
 
     @Transactional
-    public void processAllOverdueEmis() {
-        // 1. Get all active lifecycle loans (excluding terminal statuses)
+    public EodResultDto processAllOverdueEmis() {
+        EodResultDto result = new EodResultDto();
+
+        // 1. Get all active lifecycle loans
         List<LoanEntity> loans = loanRepo.findAll().stream()
                 .filter(loan -> {
                     String code = loan.getLoanStatus().getCode();
@@ -155,9 +154,31 @@ public class DpdService {
                 })
                 .toList();
 
-        // 2. Process each loan
+        result.setTotalLoansProcessed(loans.size());
+
+        // 2. Process each loan — collect stats
         for (LoanEntity loan : loans) {
-            calculateDpdForLoan(loan.getId());
+            List<EmiScheduleEntity> emis = emiScheduleRepository.findByLoanIdOrderByEmiNumberAsc(loan.getId());
+            result.setTotalEmisProcessed(result.getTotalEmisProcessed() + emis.size());
+
+            for (EmiScheduleEntity emi : emis) {
+                if (emi.getStatus().equals("PAID")) {
+                    result.setEmisAlreadyPaid(result.getEmisAlreadyPaid() + 1);
+                }
+                EmiScheduleEntity updated = calculateDpdForEmi(emi.getId());
+                if (updated.getStatus().equals("OVERDUE")) {
+                    result.setEmisMarkedOverdue(result.getEmisMarkedOverdue() + 1);
+                }
+            }
+
+            // Update loan status and count
+            String newStatus = updateLoanStatus(loan.getId());
+            if ("ACTIVE".equals(newStatus))    result.setLoansMarkedActive(result.getLoansMarkedActive() + 1);
+            else if ("OVERDUE".equals(newStatus)) result.setLoansMarkedOverdue(result.getLoansMarkedOverdue() + 1);
+            else if ("NPA".equals(newStatus))     result.setLoansMarkedNpa(result.getLoansMarkedNpa() + 1);
+            else if ("DISBURSED".equals(newStatus)) result.setLoansStayedDisbursed(result.getLoansStayedDisbursed() + 1);
         }
+
+        return result;
     }
 }

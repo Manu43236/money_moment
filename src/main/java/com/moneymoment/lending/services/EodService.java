@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.moneymoment.lending.dtos.EodResultDto;
 import com.moneymoment.lending.entities.EmiScheduleEntity;
 import com.moneymoment.lending.repos.EmiScheduleRepository;
 
@@ -30,27 +31,29 @@ public class EodService {
     }
 
     @Transactional
-    public void processEod() {
+    public EodResultDto processEod() {
 
         log.info("========== EOD PROCESSING STARTED ==========");
         log.info("EOD Start Time: {}", LocalDateTime.now());
 
         try {
-            // Step 1: Calculate DPD for all loans
-            log.info("Step 1: Calculating DPD for all loans...");
-            dpdService.processAllOverdueEmis();
-            log.info("Step 1: DPD calculation completed");
+            // Step 1 + 2: Calculate DPD and update loan statuses
+            log.info("Step 1: Calculating DPD and updating loan statuses...");
+            EodResultDto result = dpdService.processAllOverdueEmis();
+            log.info("Step 1 done — loans: {}, EMIs: {}, overdue EMIs: {}",
+                    result.getTotalLoansProcessed(), result.getTotalEmisProcessed(), result.getEmisMarkedOverdue());
 
-            // Step 2: Apply late payment penalties
+            // Step 3: Apply late payment penalties
             log.info("Step 2: Applying late payment penalties...");
-            applyLateFees();
-            log.info("Step 2: Late payment penalties applied");
-
-            // Step 3: Update loan statuses
-            log.info("Step 3: Loan statuses updated via DPD service");
+            int[] penaltyStats = applyLateFees();
+            result.setPenaltiesApplied(penaltyStats[0]);
+            result.setTotalPenaltyAmount(penaltyStats[1]);
+            log.info("Step 2 done — penalties applied: {}", penaltyStats[0]);
 
             log.info("========== EOD PROCESSING COMPLETED SUCCESSFULLY ==========");
             log.info("EOD End Time: {}", LocalDateTime.now());
+
+            return result;
 
         } catch (Exception e) {
             log.error("========== EOD PROCESSING FAILED ==========");
@@ -59,28 +62,24 @@ public class EodService {
         }
     }
 
-    private void applyLateFees() {
-        // Get all OVERDUE EMIs that became overdue today (DPD = 1)
-        LocalDate today = LocalDate.now();
-        LocalDate yesterday = today.minusDays(1);
-
+    private int[] applyLateFees() {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
         List<EmiScheduleEntity> newlyOverdueEmis = emiScheduleRepository
                 .findByDueDateAndStatus(yesterday, "OVERDUE");
 
-        log.info("Found {} newly overdue EMIs", newlyOverdueEmis.size());
+        int count = 0;
+        double totalAmount = 0.0;
 
         for (EmiScheduleEntity emi : newlyOverdueEmis) {
             try {
-                // Check if EMI became overdue exactly 1 day ago
                 if (emi.getDaysPastDue() != null && emi.getDaysPastDue() >= 1) {
                     penaltyService.applyPenalty(emi.getId(), "EMI_OVERDUE_FEE");
-                    log.info("Late fee applied for EMI {} of Loan {}",
-                            emi.getEmiNumber(), emi.getLoan().getLoanNumber());
+                    count++;
                 }
             } catch (Exception e) {
                 log.error("Failed to apply late fee for EMI {}: {}", emi.getId(), e.getMessage());
-                // Continue processing other EMIs
             }
         }
+        return new int[]{count, (int) totalAmount};
     }
 }

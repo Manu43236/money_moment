@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
+import com.moneymoment.lending.dtos.EodResultDto;
 import com.moneymoment.lending.services.EodService;
 
 @RestController
@@ -19,18 +20,12 @@ public class EodController {
     }
 
     @PostMapping("/run-now")
-    public ResponseEntity<ApiResponse<String>> runEodManually() {
-
+    public ResponseEntity<ApiResponse<EodResultDto>> runEodManually() {
         try {
-            eodService.processEod();
-            return ResponseEntity.ok(
-                    ApiResponse.success(
-                            "EOD processing completed successfully",
-                            "EOD executed manually"));
+            EodResultDto result = eodService.processEod();
+            return ResponseEntity.ok(ApiResponse.success(result, "EOD executed successfully"));
         } catch (Exception e) {
-            return ResponseEntity.ok(
-                    ApiResponse.error(
-                            "EOD processing failed: " + e.getMessage()));
+            return ResponseEntity.ok(ApiResponse.error("EOD processing failed: " + e.getMessage()));
         }
     }
 }
