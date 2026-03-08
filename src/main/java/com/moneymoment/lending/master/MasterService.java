@@ -89,6 +89,11 @@ public class MasterService {
                                 .orElseThrow(() -> new RuntimeException("Processing fee config not found"));
         }
 
+        // Get all processing fee configs
+        public List<ProcessingFeeConfigEntity> getAllProcessingFees() {
+                return processingFeeConfigRepo.findAll();
+        }
+
         // Get all interest rate configs (we'll add smart lookup later)
         public List<InterestRateConfigEntity> getAllInterestRateConfigs() {
                 return interestRateConfigRepo.findAll();

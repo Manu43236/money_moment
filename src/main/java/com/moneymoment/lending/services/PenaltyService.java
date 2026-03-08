@@ -111,6 +111,10 @@ public class PenaltyService {
         return penalty;
     }
 
+    public List<PenaltyConfigEntity> getAllPenaltyConfigs() {
+        return penaltyConfigRepository.findAll();
+    }
+
     @Transactional
     public PagedResponse<LoanPenaltyEntity> getAllPenalties(int page, int size) {
         var pageable = PageRequest.of(page, size, Sort.by("appliedDate").descending());

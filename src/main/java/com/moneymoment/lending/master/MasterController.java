@@ -73,6 +73,13 @@ public class MasterController {
                 "Processing fee config fetched successfully"));
     }
 
+    @GetMapping("/processing-fees")
+    public ResponseEntity<ApiResponse<List<ProcessingFeeConfigEntity>>> getAllProcessingFees() {
+        return ResponseEntity.ok(ApiResponse.success(
+                masterService.getAllProcessingFees(),
+                "Processing fee configs fetched successfully"));
+    }
+
     @GetMapping("/interest-rate")
     public ResponseEntity<ApiResponse<Double>> getInterestRate(
             @RequestParam String loanTypeCode,

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.moneymoment.lending.common.response.ApiResponse;
 import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.entities.LoanPenaltyEntity;
+import com.moneymoment.lending.entities.PenaltyConfigEntity;
 import com.moneymoment.lending.services.PenaltyService;
 
 @RestController
@@ -23,6 +24,11 @@ public class PenaltyController {
 
     public PenaltyController(PenaltyService penaltyService) {
         this.penaltyService = penaltyService;
+    }
+
+    @GetMapping("/configs")
+    public ResponseEntity<ApiResponse<List<PenaltyConfigEntity>>> getPenaltyConfigs() {
+        return ResponseEntity.ok(ApiResponse.success(penaltyService.getAllPenaltyConfigs(), "Penalty configs fetched"));
     }
 
     @GetMapping
