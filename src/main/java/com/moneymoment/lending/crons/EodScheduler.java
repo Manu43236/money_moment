@@ -21,6 +21,6 @@ public class EodScheduler {
     @Scheduled(cron = "0 59 23 * * *", zone = "Asia/Kolkata")
     public void runDailyEod() {
         log.info("========== SCHEDULED EOD TRIGGERED ==========");
-        eodService.processEod();
+        eodService.processEod("SCHEDULER");
     }
 }

@@ -7,9 +7,15 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.moneymoment.lending.dtos.EodLogResponseDto;
 import com.moneymoment.lending.dtos.EodResultDto;
 import com.moneymoment.lending.entities.EmiScheduleEntity;
+import com.moneymoment.lending.entities.EodLogEntity;
 import com.moneymoment.lending.repos.EmiScheduleRepository;
+import com.moneymoment.lending.repos.EodLogRepository;
+import com.moneymoment.lending.common.response.PagedResponse;
+
+import org.springframework.data.domain.PageRequest;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,46 +26,91 @@ public class EodService {
     private final DpdService dpdService;
     private final PenaltyService penaltyService;
     private final EmiScheduleRepository emiScheduleRepository;
+    private final EodLogRepository eodLogRepository;
 
     public EodService(
             DpdService dpdService,
             PenaltyService penaltyService,
-            EmiScheduleRepository emiScheduleRepository) {
+            EmiScheduleRepository emiScheduleRepository,
+            EodLogRepository eodLogRepository) {
         this.dpdService = dpdService;
         this.penaltyService = penaltyService;
         this.emiScheduleRepository = emiScheduleRepository;
+        this.eodLogRepository = eodLogRepository;
     }
 
     @Transactional
     public EodResultDto processEod() {
+        return processEod("MANUAL");
+    }
 
-        log.info("========== EOD PROCESSING STARTED ==========");
+    @Transactional
+    public EodResultDto processEod(String triggeredBy) {
+        log.info("========== EOD PROCESSING STARTED ({}) ==========", triggeredBy);
         log.info("EOD Start Time: {}", LocalDateTime.now());
 
+        EodLogEntity eodLog = new EodLogEntity();
+        eodLog.setRunDate(LocalDateTime.now());
+        eodLog.setTriggeredBy(triggeredBy);
+
         try {
-            // Step 1 + 2: Calculate DPD and update loan statuses
-            log.info("Step 1: Calculating DPD and updating loan statuses...");
             EodResultDto result = dpdService.processAllOverdueEmis();
-            log.info("Step 1 done — loans: {}, EMIs: {}, overdue EMIs: {}",
+            log.info("DPD done — loans: {}, EMIs: {}, overdue: {}",
                     result.getTotalLoansProcessed(), result.getTotalEmisProcessed(), result.getEmisMarkedOverdue());
 
-            // Step 3: Apply late payment penalties
-            log.info("Step 2: Applying late payment penalties...");
             int[] penaltyStats = applyLateFees();
             result.setPenaltiesApplied(penaltyStats[0]);
-            result.setTotalPenaltyAmount(penaltyStats[1]);
-            log.info("Step 2 done — penalties applied: {}", penaltyStats[0]);
+            log.info("Penalties done — applied: {}", penaltyStats[0]);
 
-            log.info("========== EOD PROCESSING COMPLETED SUCCESSFULLY ==========");
-            log.info("EOD End Time: {}", LocalDateTime.now());
+            // Save success log
+            eodLog.setStatus("SUCCESS");
+            eodLog.setTotalLoansProcessed(result.getTotalLoansProcessed());
+            eodLog.setTotalEmisProcessed(result.getTotalEmisProcessed());
+            eodLog.setEmisMarkedOverdue(result.getEmisMarkedOverdue());
+            eodLog.setEmisAlreadyPaid(result.getEmisAlreadyPaid());
+            eodLog.setLoansMarkedActive(result.getLoansMarkedActive());
+            eodLog.setLoansMarkedOverdue(result.getLoansMarkedOverdue());
+            eodLog.setLoansMarkedNpa(result.getLoansMarkedNpa());
+            eodLog.setLoansStayedDisbursed(result.getLoansStayedDisbursed());
+            eodLog.setPenaltiesApplied(result.getPenaltiesApplied());
+            eodLogRepository.save(eodLog);
 
+            log.info("========== EOD COMPLETED SUCCESSFULLY ==========");
             return result;
 
         } catch (Exception e) {
-            log.error("========== EOD PROCESSING FAILED ==========");
+            log.error("========== EOD FAILED ==========");
             log.error("Error: {}", e.getMessage(), e);
+            eodLog.setStatus("FAILED");
+            eodLog.setErrorMessage(e.getMessage());
+            eodLogRepository.save(eodLog);
             throw e;
         }
+    }
+
+    public PagedResponse<EodLogResponseDto> getHistory(int page, int size) {
+        return PagedResponse.of(
+                eodLogRepository.findAllByOrderByRunDateDesc(PageRequest.of(page, size))
+                        .map(this::toDto));
+    }
+
+    private EodLogResponseDto toDto(EodLogEntity log) {
+        EodLogResponseDto dto = new EodLogResponseDto();
+        dto.setId(log.getId());
+        dto.setRunDate(log.getRunDate());
+        dto.setStatus(log.getStatus());
+        dto.setTriggeredBy(log.getTriggeredBy());
+        dto.setErrorMessage(log.getErrorMessage());
+        dto.setTotalLoansProcessed(log.getTotalLoansProcessed());
+        dto.setTotalEmisProcessed(log.getTotalEmisProcessed());
+        dto.setEmisMarkedOverdue(log.getEmisMarkedOverdue());
+        dto.setEmisAlreadyPaid(log.getEmisAlreadyPaid());
+        dto.setLoansMarkedActive(log.getLoansMarkedActive());
+        dto.setLoansMarkedOverdue(log.getLoansMarkedOverdue());
+        dto.setLoansMarkedNpa(log.getLoansMarkedNpa());
+        dto.setLoansStayedDisbursed(log.getLoansStayedDisbursed());
+        dto.setPenaltiesApplied(log.getPenaltiesApplied());
+        return dto;
     }
 
     private int[] applyLateFees() {
