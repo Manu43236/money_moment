@@ -108,7 +108,8 @@ public class DpdService {
 
         // 6. Update loan fields
         loan.setCurrentDpd(highestDpd);
-        if (highestDpd > loan.getHighestDpd()) {
+        int currentHighest = loan.getHighestDpd() != null ? loan.getHighestDpd() : 0;
+        if (highestDpd > currentHighest) {
             loan.setHighestDpd(highestDpd);
         }
         loan.setNumberOfOverdueEmis((int) overdueCount);
