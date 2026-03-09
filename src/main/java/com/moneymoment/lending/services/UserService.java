@@ -4,9 +4,12 @@ import com.moneymoment.lending.common.constants.AppConstants;
 import com.moneymoment.lending.common.exception.DuplicateRecordException;
 import com.moneymoment.lending.common.exception.ResourceNotFoundException;
 import com.moneymoment.lending.common.utils.NumberGenerator;
+import com.moneymoment.lending.common.exception.BusinessLogicException;
+import com.moneymoment.lending.dtos.ChangePasswordDto;
 import com.moneymoment.lending.dtos.LoginRequestDto;
 import com.moneymoment.lending.dtos.LoginResponseDto;
 import com.moneymoment.lending.dtos.RoleResponseDto;
+import com.moneymoment.lending.dtos.UpdateProfileDto;
 import com.moneymoment.lending.dtos.UserRequestDto;
 import com.moneymoment.lending.dtos.UserResponseDto;
 import com.moneymoment.lending.entities.RoleEntity;
@@ -266,6 +269,52 @@ public class UserService {
         response.setToken(jwtUtil.generateToken(user.getUsername(), user.getEmployeeId(), roles));
 
         return response;
+    }
+
+    // Get my profile
+    @Transactional(readOnly = true)
+    public UserResponseDto getMyProfile(String username) {
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
+        return toDto(user);
+    }
+
+    // Update my profile
+    @Transactional
+    public UserResponseDto updateMyProfile(String username, UpdateProfileDto request) {
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
+
+        if (request.getFullName() != null && !request.getFullName().isBlank())
+            user.setFullName(request.getFullName());
+
+        if (request.getPhone() != null && !request.getPhone().isBlank())
+            user.setPhone(request.getPhone());
+
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            userRepository.findByEmail(request.getEmail())
+                    .filter(existing -> !existing.getId().equals(user.getId()))
+                    .ifPresent(e -> { throw new DuplicateRecordException("Email already in use"); });
+            user.setEmail(request.getEmail());
+        }
+
+        return toDto(userRepository.save(user));
+    }
+
+    // Change my password
+    @Transactional
+    public void changeMyPassword(String username, ChangePasswordDto request) {
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword()))
+            throw new BusinessLogicException("Current password is incorrect");
+
+        if (request.getNewPassword().length() < 6)
+            throw new BusinessLogicException("New password must be at least 6 characters");
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 
     // Remove role from user
