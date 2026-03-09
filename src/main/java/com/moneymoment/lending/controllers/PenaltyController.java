@@ -3,6 +3,7 @@ package com.moneymoment.lending.controllers;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,11 +27,13 @@ public class PenaltyController {
         this.penaltyService = penaltyService;
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/configs")
     public ResponseEntity<ApiResponse<List<PenaltyConfigEntity>>> getPenaltyConfigs() {
         return ResponseEntity.ok(ApiResponse.success(penaltyService.getAllPenaltyConfigs(), "Penalty configs fetched"));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<LoanPenaltyEntity>>> getAllPenalties(
             @RequestParam(defaultValue = "0") int page,
@@ -41,6 +44,7 @@ public class PenaltyController {
                         "Penalties fetched successfully"));
     }
 
+    @PreAuthorize("hasAnyAuthority('OPERATIONS_MANAGER', 'ADMIN')")
     @PostMapping("/apply")
     public ResponseEntity<ApiResponse<LoanPenaltyEntity>> applyPenalty(
             @RequestParam Long emiScheduleId,
@@ -52,6 +56,7 @@ public class PenaltyController {
                         "Penalty applied successfully"));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/loan/{loanNumber}")
     public ResponseEntity<ApiResponse<PagedResponse<LoanPenaltyEntity>>> getPenaltiesByLoan(
             @PathVariable String loanNumber,
@@ -64,6 +69,7 @@ public class PenaltyController {
                         "Penalties fetched successfully"));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/emi/{emiScheduleId}")
     public ResponseEntity<ApiResponse<List<LoanPenaltyEntity>>> getPenaltiesByEmi(
             @PathVariable Long emiScheduleId) {
@@ -74,6 +80,7 @@ public class PenaltyController {
                         "Penalties fetched successfully"));
     }
 
+    @PreAuthorize("hasAnyAuthority('BRANCH_MANAGER', 'REGIONAL_MANAGER', 'CHIEF_CREDIT_OFFICER', 'ADMIN')")
     @PostMapping("/waive/{penaltyId}")
     public ResponseEntity<ApiResponse<LoanPenaltyEntity>> waivePenalty(
             @PathVariable Long penaltyId,

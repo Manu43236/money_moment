@@ -1,6 +1,7 @@
 package com.moneymoment.lending.controllers;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +25,7 @@ public class CollateralController {
         this.collateralService = collateralService;
     }
 
+    @PreAuthorize("hasAnyAuthority('CREDIT_ANALYST', 'RISK_MANAGER', 'OPERATIONS_MANAGER', 'ADMIN')")
     @PostMapping
     public ResponseEntity<ApiResponse<CollateralResponseDto>> registerCollateral(
             @RequestBody CollateralRequestDto request) {
@@ -34,6 +36,7 @@ public class CollateralController {
                         "Collateral registered successfully"));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/loan/{loanNumber}")
     public ResponseEntity<ApiResponse<CollateralResponseDto>> getCollateralByLoan(
             @PathVariable String loanNumber) {
@@ -44,6 +47,7 @@ public class CollateralController {
                         "Collateral details fetched successfully"));
     }
 
+    @PreAuthorize("hasAnyAuthority('BRANCH_MANAGER', 'REGIONAL_MANAGER', 'CHIEF_CREDIT_OFFICER', 'OPERATIONS_MANAGER', 'ADMIN')")
     @PutMapping("/release/{loanNumber}")
     public ResponseEntity<ApiResponse<CollateralResponseDto>> releaseCollateral(
             @PathVariable String loanNumber) {

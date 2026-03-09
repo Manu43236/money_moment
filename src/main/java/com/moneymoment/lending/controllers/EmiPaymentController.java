@@ -2,6 +2,7 @@ package com.moneymoment.lending.controllers;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,6 +28,7 @@ public class EmiPaymentController {
         this.emiPaymentService = emiPaymentService;
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping
     public ResponseEntity<ApiResponse<PagedResponse<PaymentResponseDto>>> getAll(
             @RequestParam(defaultValue = "0") int page,
@@ -43,6 +45,7 @@ public class EmiPaymentController {
                 "Payments fetched successfully"));
     }
 
+    @PreAuthorize("hasAnyAuthority('OPERATIONS_MANAGER', 'ADMIN')")
     @PostMapping
     public ResponseEntity<ApiResponse<PaymentResponseDto>> processPayment(
             @RequestBody PaymentRequestDto request) {

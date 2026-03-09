@@ -3,6 +3,7 @@ package com.moneymoment.lending.master;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +20,7 @@ import com.moneymoment.lending.master.entities.ProcessingFeeConfigEntity;
 import com.moneymoment.lending.master.entities.TenureMasterEntity;
 import com.moneymoment.lending.entities.RoleEntity;
 
+@PreAuthorize("isAuthenticated()")
 @RestController
 @RequestMapping("/api/masters")
 public class MasterController {

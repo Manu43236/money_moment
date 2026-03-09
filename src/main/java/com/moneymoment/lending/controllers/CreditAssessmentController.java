@@ -11,6 +11,7 @@ import com.moneymoment.lending.services.CreditAssessmentService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +24,7 @@ public class CreditAssessmentController {
     @Autowired
     public CreditAssessmentService creditAssessmentService;
 
+    @PreAuthorize("hasAnyAuthority('CREDIT_ANALYST', 'CREDIT_MANAGER', 'ADMIN')")
     @PostMapping
     public ResponseEntity<ApiResponse<CreditAssessmentResponseDto>> postMethodName(
             @RequestBody CreditAssessmentRequestDto creditAssessmentRequestDto) {
@@ -32,6 +34,7 @@ public class CreditAssessmentController {
                         "Credit Assessment Created Successfully"));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CreditAssessmentResponseDto>> getAssessmentById(
             @PathVariable Long id) {
@@ -41,6 +44,7 @@ public class CreditAssessmentController {
                         "Assessment fetched successfully"));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/loan/{loanNumber}")
     public ResponseEntity<ApiResponse<CreditAssessmentResponseDto>> getLatestAssessmentByLoan(
             @PathVariable String loanNumber) {

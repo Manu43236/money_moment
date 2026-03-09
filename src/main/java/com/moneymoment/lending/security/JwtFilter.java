@@ -11,7 +11,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 @Component
 @Slf4j
@@ -34,8 +39,19 @@ public class JwtFilter extends OncePerRequestFilter {
             String token = authHeader.substring(7);
             if (jwtUtil.isTokenValid(token)) {
                 String username = jwtUtil.extractUsername(token);
+                String rolesStr = jwtUtil.extractRoles(token);
+
+                List<SimpleGrantedAuthority> authorities = Collections.emptyList();
+                if (rolesStr != null && !rolesStr.isBlank()) {
+                    authorities = Arrays.stream(rolesStr.split(","))
+                            .map(String::trim)
+                            .filter(r -> !r.isEmpty())
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(Collectors.toList());
+                }
+
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(username, null, Collections.emptyList());
+                        new UsernamePasswordAuthenticationToken(username, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } else {
                 log.warn("Invalid or expired JWT token");

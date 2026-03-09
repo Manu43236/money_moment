@@ -1,6 +1,7 @@
 package com.moneymoment.lending.controllers;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,6 +24,7 @@ public class EodController {
         this.eodService = eodService;
     }
 
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'BRANCH_MANAGER', 'REGIONAL_MANAGER', 'CHIEF_CREDIT_OFFICER')")
     @GetMapping("/history")
     public ResponseEntity<ApiResponse<PagedResponse<EodLogResponseDto>>> getHistory(
             @RequestParam(defaultValue = "0") int page,
@@ -30,6 +32,7 @@ public class EodController {
         return ResponseEntity.ok(ApiResponse.success(eodService.getHistory(page, size), "EOD history fetched"));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping("/run-now")
     public ResponseEntity<ApiResponse<EodResultDto>> runEodManually() {
         try {

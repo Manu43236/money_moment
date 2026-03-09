@@ -18,6 +18,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;

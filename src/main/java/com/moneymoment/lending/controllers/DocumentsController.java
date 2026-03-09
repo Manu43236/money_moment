@@ -11,6 +11,7 @@ import com.moneymoment.lending.services.DocumentsService;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +30,7 @@ public class DocumentsController {
         this.documentsService = documentsService;
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping()
     public ResponseEntity<ApiResponse<PagedResponse<DocumentResponseDto>>> getAllDocs(
             @RequestParam(defaultValue = "0") int page,
@@ -36,6 +38,7 @@ public class DocumentsController {
         return ResponseEntity.ok(ApiResponse.success(documentsService.getAllDocuments(page, size), "Documents fetched successfully"));
     }
 
+    @PreAuthorize("hasAnyAuthority('LOAN_OFFICER', 'CREDIT_ANALYST', 'ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<DocumentResponseDto>> uploadDocuments(
             @RequestParam MultipartFile file,
@@ -61,6 +64,7 @@ public class DocumentsController {
     // }
 
     // get documents by customer number
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/customer/{customerNumber}")
     public ResponseEntity<ApiResponse<PagedResponse<DocumentResponseDto>>> getNotRejectedDocumentsByCustomerNumber(
             @PathVariable String customerNumber,
@@ -72,6 +76,7 @@ public class DocumentsController {
     }
 
     // get documents by loan number
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/loan/{loanNumber}")
     public ResponseEntity<ApiResponse<PagedResponse<DocumentResponseDto>>> getDocumentsByLoanNumber(
             @PathVariable String loanNumber,
@@ -82,6 +87,7 @@ public class DocumentsController {
     }
 
     // verify document
+    @PreAuthorize("hasAnyAuthority('CREDIT_ANALYST', 'COMPLIANCE_OFFICER', 'CREDIT_MANAGER', 'BRANCH_MANAGER', 'ADMIN')")
     @PutMapping("/{documentNumber}/verify")
     public ResponseEntity<ApiResponse<DocumentResponseDto>> verifyDocument(@PathVariable String documentNumber,
             @RequestBody DocumentVerifyDto verifyDto) {

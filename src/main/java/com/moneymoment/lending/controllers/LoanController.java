@@ -15,6 +15,7 @@ import com.moneymoment.lending.services.LoanTimelineService;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,6 +34,7 @@ public class LoanController {
         this.loanTimelineService = loanTimelineService;
     }
 
+    @PreAuthorize("hasAnyAuthority('LOAN_OFFICER', 'ADMIN')")
     @PostMapping()
     public ResponseEntity<ApiResponse<LoanResponseDto>> postMethodName(@RequestBody LoanRequestDto loanRequestDto) {
         System.out.println("Received loan creation request: " + loanRequestDto);
@@ -41,6 +43,7 @@ public class LoanController {
     }
 
     // get all loans
+    @PreAuthorize("isAuthenticated()")
     @GetMapping()
     public ResponseEntity<ApiResponse<PagedResponse<LoanResponseDto>>> getMethodName(
             @RequestParam(defaultValue = "0") int page,
@@ -54,12 +57,14 @@ public class LoanController {
     }
 
     // get loan by id
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<LoanResponseDto>> getLoanById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(loanService.fetchLoanById(id), "Successfully fetched loan"));
     }
 
     // get loan by loan number
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/loan-number/{loanNumber}")
     public ResponseEntity<ApiResponse<LoanResponseDto>> getLoanByLoanNumber(@PathVariable String loanNumber) {
         return ResponseEntity
@@ -67,6 +72,7 @@ public class LoanController {
     }
 
     // get loans by customer id
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/customer/{customerId}")
     public ResponseEntity<ApiResponse<PagedResponse<LoanResponseDto>>> getLoansByCustomerId(
             @PathVariable Long customerId,
@@ -77,6 +83,7 @@ public class LoanController {
     }
 
     // get EMI schedule for a loan
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{loanNumber}/emi-schedule")
     public ResponseEntity<ApiResponse<List<EmiScheduleResponseDto>>> getEmiSchedule(@PathVariable String loanNumber) {
         return ResponseEntity.ok(ApiResponse.success(loanService.fetchEmiSchedule(loanNumber),
@@ -84,6 +91,7 @@ public class LoanController {
     }
 
     // get loan timeline
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{loanNumber}/timeline")
     public ResponseEntity<ApiResponse<List<LoanTimelineEventDto>>> getLoanTimeline(@PathVariable String loanNumber) {
         return ResponseEntity.ok(ApiResponse.success(loanTimelineService.getTimeline(loanNumber),
