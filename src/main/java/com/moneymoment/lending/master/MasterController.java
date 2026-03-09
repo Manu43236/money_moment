@@ -80,6 +80,13 @@ public class MasterController {
                 "Processing fee configs fetched successfully"));
     }
 
+    @GetMapping("/interest-rates")
+    public ResponseEntity<ApiResponse<List<com.moneymoment.lending.master.entities.InterestRateConfigEntity>>> getAllInterestRates() {
+        return ResponseEntity.ok(ApiResponse.success(
+                masterService.getAllInterestRateConfigs(),
+                "Interest rate configs fetched"));
+    }
+
     @GetMapping("/interest-rate")
     public ResponseEntity<ApiResponse<Double>> getInterestRate(
             @RequestParam String loanTypeCode,
