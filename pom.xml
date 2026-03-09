@@ -11,8 +11,8 @@
 	<groupId>com.moneymoment</groupId>
 	<artifactId>lending-platform</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>Money Moment</name>
-	<description>Demo project for Spring Boot</description>
+	<name>FinPulse</name>
+	<description>FinPulse — The Lending Echosystem</description>
 	<url/>
 	<licenses>
 		<license/>

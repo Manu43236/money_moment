@@ -1,7 +1,7 @@
-# Money Moment - Lending Platform
+# FinPulse — The Lending Echosystem
 
 ## Project Overview
-Demo lending management system (LMS) for Money Moment. Handles the full loan lifecycle from application to closure.
+Demo lending management system (LMS) for FinPulse. Handles the full loan lifecycle from application to closure.
 
 ## Tech Stack
 - **Java 21**, Spring Boot 3.5.x, Maven
