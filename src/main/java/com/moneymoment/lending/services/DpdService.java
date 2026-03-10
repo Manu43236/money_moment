@@ -34,7 +34,7 @@ public class DpdService {
         this.loanRepo = loanRepo;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public EmiScheduleEntity calculateDpdForEmi(Long emiScheduleId) {
 
         // 1. Fetch EMI
@@ -81,7 +81,14 @@ public class DpdService {
         updateLoanStatus(loanId);
     }
 
+    // Called by EOD — runs in its own transaction so a failure doesn't poison the outer EOD transaction
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public String updateLoanStatusForEod(Long loanId) {
+        return updateLoanStatus(loanId);
+    }
+
+    // Called by processPayment — joins the caller's transaction (must share lock on loan row)
+    @Transactional
     public String updateLoanStatus(Long loanId) {
         // 1. Fetch loan
         LoanEntity loan = loanRepo.findById(loanId)
@@ -173,7 +180,7 @@ public class DpdService {
             }
 
             // Update loan status and count
-            String newStatus = updateLoanStatus(loan.getId());
+            String newStatus = updateLoanStatusForEod(loan.getId());
             if ("ACTIVE".equals(newStatus))    result.setLoansMarkedActive(result.getLoansMarkedActive() + 1);
             else if ("OVERDUE".equals(newStatus)) result.setLoansMarkedOverdue(result.getLoansMarkedOverdue() + 1);
             else if ("NPA".equals(newStatus))     result.setLoansMarkedNpa(result.getLoansMarkedNpa() + 1);
