@@ -146,7 +146,6 @@ public class DpdService {
         return newStatusCode;
     }
 
-    @Transactional
     public EodResultDto processAllOverdueEmis() {
         EodResultDto result = new EodResultDto();
 

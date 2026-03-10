@@ -64,7 +64,26 @@
       "Bash(npm run build)",
       "Bash(mysql -h metro.proxy.rlwy.net -P 57517 -u root -piBdUfuHamyxLXQyCZjftfguCribQOdUd mm_hdfc_db -e \"SELECT employee_id, username, email FROM users WHERE employee_id IN \\('HDFC_EMP005','HDFC_EMP009','HDFC_EMP013'\\);\" 2>/dev/null)",
       "Bash(mysql -h metro.proxy.rlwy.net -P 57517 -u root -piBdUfuHamyxLXQyCZjftfguCribQOdUd mm_hdfc_db -e \"SELECT u.full_name, u.username, u.email, r.role_code FROM users u JOIN user_roles ur ON u.id = ur.user_id JOIN roles r ON ur.role_id = r.id ORDER BY u.id;\" 2>/dev/null)",
-      "Bash(./mvnw compile -q 2>&1 | tail -20)"
+      "Bash(./mvnw compile -q 2>&1 | tail -20)",
+      "Bash(mysql -h metro.proxy.rlwy.net -P 57517 -u root -piBdUfuHamyxLXQyCZjftfguCribQOdUd mm_hdfc_db -e \"SELECT l.loan_number, c.name as customer_name, lt.name as loan_type, l.loan_amount, ls.name as status, l.created_at FROM loans l JOIN customers c ON l.customer_id = c.id JOIN loan_types lt ON l.loan_type_id = lt.id JOIN loan_statuses ls ON l.loan_status_id = ls.id ORDER BY l.created_at DESC;\" 2>/dev/null)",
+      "Bash(mysql -h metro.proxy.rlwy.net -P 57517 -u root -piBdUfuHamyxLXQyCZjftfguCribQOdUd mm_hdfc_db -e \"DESCRIBE customers; DESCRIBE loans; DESCRIBE emi_schedule;\" 2>/dev/null)",
+      "Bash(mysql -h metro.proxy.rlwy.net -P 57517 -u root -piBdUfuHamyxLXQyCZjftfguCribQOdUd mm_hdfc_db -e \"SELECT id, code, name FROM loan_types; SELECT id, code, name FROM loan_statuses; SELECT id, code FROM loan_purposes LIMIT 5; SELECT id FROM users WHERE employee_id = 'HDFC_EMP001';\" 2>/dev/null)",
+      "Bash(mysql -h metro.proxy.rlwy.net -P 57517 -u root -piBdUfuHamyxLXQyCZjftfguCribQOdUd mm_hdfc_db -e \"SELECT id, code FROM loan_purposes; SELECT id FROM disbursement_modes LIMIT 1; SELECT MAX\\(id\\) FROM customers; SELECT MAX\\(id\\) FROM loans;\" 2>/dev/null)",
+      "Bash(mysql -h metro.proxy.rlwy.net -P 57517 -u root -piBdUfuHamyxLXQyCZjftfguCribQOdUd mm_hdfc_db -e \"SELECT MAX\\(id\\) as max_customer_id FROM customers; SELECT MAX\\(id\\) as max_loan_id FROM loans; SELECT id, code FROM loan_purposes ORDER BY id;\" 2>/dev/null)",
+      "Bash(curl -s -X POST http://localhost:1992/api/seed/demo-data | python3 -m json.tool 2>/dev/null || curl -s -X POST http://localhost:1992/api/seed/demo-data)",
+      "Bash(sleep 20 && curl -s http://localhost:1992/api/health)",
+      "Bash(curl -s -X POST http://localhost:1992/api/seed/demo-data | python3 -m json.tool)",
+      "Bash(./mvnw compile -q 2>&1 | tail -10)",
+      "Bash(sleep 20 && curl -s http://localhost:1992/api/health | python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['data']['status']\\)\")",
+      "Bash(sleep 15 && curl -s http://localhost:1992/api/health)",
+      "Bash(curl -s -X POST http://localhost:1992/api/auth/login \\\\\n  -H 'Content-Type: application/json' \\\\\n  -d '{\"username\":\"admin\",\"password\":\"admin123\"}' | python3 -m json.tool 2>/dev/null | head -20)",
+      "Bash(curl -s \"http://localhost:1992/api/users?page=0&size=5\" | python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(u['username'], u['employeeId']\\) for u in d['data']['content']]\" 2>/dev/null)",
+      "Bash(curl -s \"http://localhost:1992/api/users?page=0&size=20\" | python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(u['username'], '|', u['roles']\\) for u in d['data']['content']]\" 2>/dev/null)",
+      "Bash(curl -s \"http://localhost:1992/api/penalties/configs\" | python3 -m json.tool 2>/dev/null)",
+      "Bash(mysql -u root money_moment -e \"SELECT penalty_code, penalty_name, charge_type, charge_value FROM penalty_configs;\" 2>/dev/null)",
+      "Bash(mysql -u root -e \"SELECT penalty_code, penalty_name FROM money_moment.penalty_configs;\" 2>/dev/null || mysql -u root money_moment -e \"SHOW TABLES;\" 2>/dev/null || echo \"need password\")",
+      "Bash(./mvnw compile -q 2>&1 | tail -5)",
+      "Bash(git add -A && git status)"
     ]
   }
 }
