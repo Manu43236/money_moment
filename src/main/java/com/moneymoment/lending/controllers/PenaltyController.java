@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
 import com.moneymoment.lending.common.response.PagedResponse;
+import com.moneymoment.lending.dtos.LoanPenaltyResponseDto;
 import com.moneymoment.lending.entities.LoanPenaltyEntity;
 import com.moneymoment.lending.entities.PenaltyConfigEntity;
 import com.moneymoment.lending.services.PenaltyService;
@@ -35,7 +36,7 @@ public class PenaltyController {
 
     @PreAuthorize("isAuthenticated()")
     @GetMapping
-    public ResponseEntity<ApiResponse<PagedResponse<LoanPenaltyEntity>>> getAllPenalties(
+    public ResponseEntity<ApiResponse<PagedResponse<LoanPenaltyResponseDto>>> getAllPenalties(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(
@@ -58,7 +59,7 @@ public class PenaltyController {
 
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/loan/{loanNumber}")
-    public ResponseEntity<ApiResponse<PagedResponse<LoanPenaltyEntity>>> getPenaltiesByLoan(
+    public ResponseEntity<ApiResponse<PagedResponse<LoanPenaltyResponseDto>>> getPenaltiesByLoan(
             @PathVariable String loanNumber,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -71,7 +72,7 @@ public class PenaltyController {
 
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/emi/{emiScheduleId}")
-    public ResponseEntity<ApiResponse<List<LoanPenaltyEntity>>> getPenaltiesByEmi(
+    public ResponseEntity<ApiResponse<List<LoanPenaltyResponseDto>>> getPenaltiesByEmi(
             @PathVariable Long emiScheduleId) {
 
         return ResponseEntity.ok(

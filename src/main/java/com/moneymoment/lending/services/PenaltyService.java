@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.moneymoment.lending.common.response.PagedResponse;
+import com.moneymoment.lending.dtos.LoanPenaltyResponseDto;
 
 import com.moneymoment.lending.common.exception.BusinessLogicException;
 import com.moneymoment.lending.common.exception.ResourceNotFoundException;
@@ -117,23 +118,57 @@ public class PenaltyService {
     }
 
     @Transactional
-    public PagedResponse<LoanPenaltyEntity> getAllPenalties(int page, int size) {
+    public PagedResponse<LoanPenaltyResponseDto> getAllPenalties(int page, int size) {
         var pageable = PageRequest.of(page, size, Sort.by("appliedDate").descending());
-        return PagedResponse.of(loanPenaltyRepository.findAll(pageable));
+        return PagedResponse.of(loanPenaltyRepository.findAll(pageable).map(this::toDto));
     }
 
     @Transactional
-    public PagedResponse<LoanPenaltyEntity> getPenaltiesByLoan(String loanNumber, int page, int size) {
+    public PagedResponse<LoanPenaltyResponseDto> getPenaltiesByLoan(String loanNumber, int page, int size) {
         LoanEntity loan = loanRepo.findByLoanNumber(loanNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", loanNumber));
 
         var pageable = PageRequest.of(page, size, Sort.by("appliedDate").descending());
-        return PagedResponse.of(loanPenaltyRepository.findByLoanId(loan.getId(), pageable));
+        return PagedResponse.of(loanPenaltyRepository.findByLoanId(loan.getId(), pageable).map(this::toDto));
     }
 
     @Transactional
-    public List<LoanPenaltyEntity> getPenaltiesByEmi(Long emiScheduleId) {
-        return loanPenaltyRepository.findByEmiScheduleId(emiScheduleId);
+    public List<LoanPenaltyResponseDto> getPenaltiesByEmi(Long emiScheduleId) {
+        return loanPenaltyRepository.findByEmiScheduleId(emiScheduleId).stream().map(this::toDto).toList();
+    }
+
+    private LoanPenaltyResponseDto toDto(LoanPenaltyEntity p) {
+        LoanPenaltyResponseDto dto = new LoanPenaltyResponseDto();
+        dto.setId(p.getId());
+        if (p.getLoan() != null) {
+            dto.setLoanId(p.getLoan().getId());
+            dto.setLoanNumber(p.getLoan().getLoanNumber());
+        }
+        if (p.getCustomer() != null) {
+            dto.setCustomerId(p.getCustomer().getId());
+            dto.setCustomerName(p.getCustomer().getName());
+        }
+        if (p.getEmiSchedule() != null) {
+            dto.setEmiScheduleId(p.getEmiSchedule().getId());
+            dto.setEmiNumber(p.getEmiSchedule().getEmiNumber());
+            dto.setEmiDueDate(p.getEmiSchedule().getDueDate());
+        }
+        dto.setPenaltyCode(p.getPenaltyCode());
+        dto.setPenaltyName(p.getPenaltyName());
+        dto.setPenaltyAmount(p.getPenaltyAmount());
+        dto.setBaseAmount(p.getBaseAmount());
+        dto.setDaysOverdue(p.getDaysOverdue());
+        dto.setIsWaived(p.getIsWaived());
+        dto.setWaivedAmount(p.getWaivedAmount());
+        dto.setWaivedAt(p.getWaivedAt());
+        dto.setWaiverReason(p.getWaiverReason());
+        dto.setIsPaid(p.getIsPaid());
+        dto.setPaidAmount(p.getPaidAmount());
+        dto.setPaidDate(p.getPaidDate());
+        dto.setAppliedDate(p.getAppliedDate());
+        dto.setAppliedBy(p.getAppliedBy());
+        dto.setRemarks(p.getRemarks());
+        return dto;
     }
 
     @Transactional
