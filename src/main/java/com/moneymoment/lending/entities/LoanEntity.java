@@ -146,6 +146,16 @@ public class LoanEntity extends BaseEntity {
     @Column(name = "last_payment_date")
     private LocalDate lastPaymentDate;
 
+    // EOD — Interest & Provisioning
+    @Column(name = "accrued_interest")
+    private Double accruedInterest;
+
+    @Column(name = "provision_amount")
+    private Double provisionAmount;
+
+    @Column(name = "provision_rate")
+    private Double provisionRate;
+
     @Column(name = "repayment_frequency")
     private String repaymentFrequency;
 

@@ -20,8 +20,17 @@ import lombok.NoArgsConstructor;
 @Table(name = "eod_logs")
 public class EodLogEntity extends BaseEntity {
 
+    @Column(name = "job_id", length = 50)
+    private String jobId;
+
     @Column(name = "run_date", nullable = false)
     private LocalDateTime runDate;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "duration_seconds")
+    private Long durationSeconds;
 
     @Column(name = "status", nullable = false, length = 20)
     private String status; // SUCCESS, FAILED
@@ -31,6 +40,28 @@ public class EodLogEntity extends BaseEntity {
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
+
+    // Phase summaries
+    @Column(name = "interest_accrued")
+    private Double interestAccrued;
+
+    @Column(name = "nach_processed")
+    private Integer nachProcessed;
+
+    @Column(name = "nach_bounced")
+    private Integer nachBounced;
+
+    @Column(name = "customers_alerted")
+    private Integer customersAlerted;
+
+    @Column(name = "total_provision_amount")
+    private Double totalProvisionAmount;
+
+    @Column(name = "emis_due_tomorrow")
+    private Integer emisDueTomorrow;
+
+    @Column(name = "reconciliation_passed")
+    private Boolean reconciliationPassed;
 
     // Step 1 — DPD
     @Column(name = "total_loans_processed")
