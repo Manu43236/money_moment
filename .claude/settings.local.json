@@ -83,7 +83,16 @@
       "Bash(mysql -u root money_moment -e \"SELECT penalty_code, penalty_name, charge_type, charge_value FROM penalty_configs;\" 2>/dev/null)",
       "Bash(mysql -u root -e \"SELECT penalty_code, penalty_name FROM money_moment.penalty_configs;\" 2>/dev/null || mysql -u root money_moment -e \"SHOW TABLES;\" 2>/dev/null || echo \"need password\")",
       "Bash(./mvnw compile -q 2>&1 | tail -5)",
-      "Bash(git add -A && git status)"
+      "Bash(git add -A && git status)",
+      "Bash(gh run list --repo Manu43236/lending-platform-ui --limit 3)",
+      "Bash(git commit --allow-empty -m \"Trigger CI/CD deploy\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\" && git push origin main)",
+      "Bash(curl -s --max-time 10 http://3.108.56.58:8080/api/health)",
+      "Bash(git add src/pages/customers/index.jsx && git commit -m \"Fix missing Tooltip import in customers page\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\" && git push origin main)",
+      "Bash(ssh -i ~/.ssh/finpuls-aws-key-pair.pem ubuntu@3.108.56.58 \"sudo journalctl -u finpulse --no-pager -n 50 | grep -E 'EOD|ERROR|restart'\")",
+      "Bash(ssh -i ~/.ssh/finpuls-aws-key-pair.pem ubuntu@3.108.56.58 \"sudo journalctl -u finpulse --no-pager -n 100 | tail -30\")",
+      "Bash(ssh -i ~/.ssh/finpuls-aws-key-pair.pem ubuntu@3.108.56.58 \"sudo journalctl -u finpulse --no-pager -n 20 2>/dev/null | tail -10\")",
+      "Bash(cd /Users/manu/Documents/pennant/lending-platform && ./mvnw clean package -DskipTests -q 2>&1 | tail -5)",
+      "Bash(git add -A && git commit -m \"Optimize EOD Phase 2: batch processing reduces 19000 DB calls to 4\n\n- Add findEmisByLoanStatusCodes\\(\\) JOIN FETCH query to load all EMIs in 1 query\n- Add findByLoanStatusCodes\\(\\) JOIN FETCH query to load all loans in 1 query  \n- Rewrite processAllOverdueEmis\\(\\) to calculate DPD in memory, batch saveAll\\(\\)\n- Enable Hibernate JDBC batch_size=50 for true batch SQL execution\n- EOD Phase 2 now: 2 bulk loads + 2 batch saves instead of 19000 individual queries\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\" && git push origin main)"
     ]
   }
 }
