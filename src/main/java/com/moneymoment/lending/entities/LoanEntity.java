@@ -162,6 +162,10 @@ public class LoanEntity extends BaseEntity {
     @Column(name = "originating_branch_code", length = 20)
     private String originatingBranchCode;
 
+    // NPA Recovery: counts consecutive full payments made after NPA — needs 3 to upgrade to ACTIVE
+    @Column(name = "npa_recovery_payment_count")
+    private Integer npaRecoveryPaymentCount;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "processed_by_user_id")
     private UserEntity processedByUser;

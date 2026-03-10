@@ -26,6 +26,9 @@ public interface EmiScheduleRepository extends JpaRepository<EmiScheduleEntity, 
 
     Long countByLoanIdAndStatus(Long loanId, String status);
 
+    // Returns the first EMI (by EMI number) whose status is in the given list — used for oldest-first enforcement and nextDueDate
+    Optional<EmiScheduleEntity> findFirstByLoanIdAndStatusInOrderByEmiNumberAsc(Long loanId, List<String> statuses);
+
     // Batch EOD: load all EMIs for active loans in one query with JOIN FETCH
     @Query("SELECT e FROM EmiScheduleEntity e JOIN FETCH e.loan l JOIN FETCH l.loanStatus WHERE l.loanStatus.code IN :codes")
     List<EmiScheduleEntity> findEmisByLoanStatusCodes(@Param("codes") List<String> codes);

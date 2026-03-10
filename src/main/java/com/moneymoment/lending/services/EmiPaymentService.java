@@ -1,7 +1,10 @@
 package com.moneymoment.lending.services;
 
 import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -11,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.moneymoment.lending.common.constants.AppConstants;
 import com.moneymoment.lending.common.enums.EmiStatusEnums;
+import com.moneymoment.lending.common.enums.LoanStatusEnums;
 import com.moneymoment.lending.common.enums.PaymentStatusEnums;
 import com.moneymoment.lending.common.enums.PaymentTypeEnums;
 import com.moneymoment.lending.common.exception.BusinessLogicException;
@@ -23,8 +27,10 @@ import com.moneymoment.lending.dtos.PaymentResponseDto;
 import com.moneymoment.lending.entities.EmiPaymentEntity;
 import com.moneymoment.lending.entities.EmiScheduleEntity;
 import com.moneymoment.lending.entities.LoanEntity;
+import com.moneymoment.lending.entities.LoanPenaltyEntity;
 import com.moneymoment.lending.repos.EmiPaymentRepository;
 import com.moneymoment.lending.repos.EmiScheduleRepository;
+import com.moneymoment.lending.repos.LoanPenaltyRepository;
 import com.moneymoment.lending.repos.LoanRepo;
 
 @Service
@@ -33,13 +39,16 @@ public class EmiPaymentService {
     private final LoanRepo loanRepo;
     private final EmiScheduleRepository emiScheduleRepository;
     private final EmiPaymentRepository emiPaymentRepository;
+    private final LoanPenaltyRepository loanPenaltyRepository;
     private final DpdService dpdService;
 
     EmiPaymentService(LoanRepo loanRepo, EmiScheduleRepository emiScheduleRepository,
-            EmiPaymentRepository emiPaymentRepository, DpdService dpdService) {
+            EmiPaymentRepository emiPaymentRepository, LoanPenaltyRepository loanPenaltyRepository,
+            DpdService dpdService) {
         this.loanRepo = loanRepo;
         this.emiScheduleRepository = emiScheduleRepository;
         this.emiPaymentRepository = emiPaymentRepository;
+        this.loanPenaltyRepository = loanPenaltyRepository;
         this.dpdService = dpdService;
     }
 
@@ -73,22 +82,63 @@ public class EmiPaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "EMI not found for loan: " + request.getLoanNumber() + ", EMI: " + request.getEmiNumber()));
 
-        if (emi.getStatus().equals(EmiStatusEnums.PAID)) {
-            throw new BusinessLogicException("EMI already paid on " + emi.getPaidDate());
+        if (EmiStatusEnums.PAID.equals(emi.getStatus())) {
+            throw new BusinessLogicException("EMI #" + request.getEmiNumber() + " already paid on " + emi.getPaidDate());
         }
 
-        String paymentType;
-        Double excessAmount = 0.0;
-        Double shortfall = 0.0;
+        // Fix 1: Oldest-overdue-first — must clear oldest overdue/partially-paid EMI before skipping ahead
+        Optional<EmiScheduleEntity> oldestPending = emiScheduleRepository
+                .findFirstByLoanIdAndStatusInOrderByEmiNumberAsc(loan.getId(),
+                        List.of(EmiStatusEnums.OVERDUE, EmiStatusEnums.PARTIALLY_PAID));
+        if (oldestPending.isPresent() && oldestPending.get().getEmiNumber() < request.getEmiNumber()) {
+            EmiScheduleEntity oldest = oldestPending.get();
+            throw new BusinessLogicException(
+                    "Cannot pay EMI #" + request.getEmiNumber() + ". Please clear EMI #"
+                            + oldest.getEmiNumber() + " (due " + oldest.getDueDate() + ") first.");
+        }
 
-        if (request.getPaymentAmount().equals(emi.getEmiAmount())) {
+        // Fix 2: Penalty-first allocation — settle all unpaid penalties before applying to EMI
+        List<LoanPenaltyEntity> unpaidPenalties = loanPenaltyRepository
+                .findByLoanIdAndIsPaid(loan.getId(), false)
+                .stream()
+                .filter(p -> !Boolean.TRUE.equals(p.getIsWaived()))
+                .sorted(Comparator.comparing(LoanPenaltyEntity::getAppliedDate))
+                .collect(Collectors.toList());
+
+        double remainingPayment = request.getPaymentAmount();
+        if (!unpaidPenalties.isEmpty()) {
+            for (LoanPenaltyEntity penalty : unpaidPenalties) {
+                if (remainingPayment <= 0) break;
+                double alreadyPaid = penalty.getPaidAmount() != null ? penalty.getPaidAmount() : 0.0;
+                double penaltyDue = penalty.getPenaltyAmount() - alreadyPaid;
+                if (penaltyDue <= 0) continue;
+                double penaltyPayment = Math.min(remainingPayment, penaltyDue);
+                penalty.setPaidAmount(alreadyPaid + penaltyPayment);
+                if (penalty.getPaidAmount() >= penalty.getPenaltyAmount()) {
+                    penalty.setIsPaid(true);
+                    penalty.setPaidDate(request.getPaymentDate());
+                }
+                remainingPayment -= penaltyPayment;
+            }
+            loanPenaltyRepository.saveAll(unpaidPenalties);
+        }
+
+        // Fix 5: For partially-paid EMIs, base payment type on the remaining due amount, not the full EMI amount
+        double alreadyPaidOnEmi = emi.getAmountPaid() != null ? emi.getAmountPaid() : 0.0;
+        double remainingEmiDue = emi.getEmiAmount() - alreadyPaidOnEmi;
+
+        String paymentType;
+        double excessAmount = 0.0;
+        double shortfall = 0.0;
+
+        if (Math.abs(remainingPayment - remainingEmiDue) < 0.01) {
             paymentType = PaymentTypeEnums.FULL;
-        } else if (request.getPaymentAmount() > emi.getEmiAmount()) {
+        } else if (remainingPayment > remainingEmiDue) {
             paymentType = PaymentTypeEnums.EXCESS;
-            excessAmount = request.getPaymentAmount() - emi.getEmiAmount();
+            excessAmount = remainingPayment - remainingEmiDue;
         } else {
             paymentType = PaymentTypeEnums.PARTIAL;
-            shortfall = emi.getEmiAmount() - request.getPaymentAmount();
+            shortfall = remainingEmiDue - remainingPayment;
         }
 
         EmiPaymentEntity payment = new EmiPaymentEntity();
@@ -107,44 +157,36 @@ public class EmiPaymentService {
 
         payment = emiPaymentRepository.save(payment);
 
-        // Update amount paid
-        Double currentPaid = emi.getAmountPaid() != null ? emi.getAmountPaid() : 0.0;
-        emi.setAmountPaid(currentPaid + request.getPaymentAmount());
-
-        // Update shortfall
+        // Update EMI — only credit the amount that went to the EMI (after penalty deduction)
+        emi.setAmountPaid(alreadyPaidOnEmi + (remainingPayment - excessAmount));
         emi.setShortfallAmount(shortfall);
 
-        // Update status
-        if (paymentType.equals("FULL") || paymentType.equals("EXCESS")) {
-            emi.setStatus("PAID");
+        if (PaymentTypeEnums.FULL.equals(paymentType) || PaymentTypeEnums.EXCESS.equals(paymentType)) {
+            emi.setStatus(EmiStatusEnums.PAID);
             emi.setPaidDate(request.getPaymentDate());
-            emi.setDaysPastDue(0); // Reset DPD
+            emi.setDaysPastDue(0);
         } else {
-            emi.setStatus("PARTIALLY_PAID");
+            emi.setStatus(EmiStatusEnums.PARTIALLY_PAID);
         }
 
         emi = emiScheduleRepository.save(emi);
 
-        if (emi.getStatus().equals("PAID")) {
-            // Increment paid EMIs count
+        if (EmiStatusEnums.PAID.equals(emi.getStatus())) {
             loan.setNumberOfPaidEmis(loan.getNumberOfPaidEmis() + 1);
-
-            // Update last payment date
             loan.setLastPaymentDate(request.getPaymentDate());
-
-            // Update outstanding amount (reduce by principal)
             loan.setOutstandingAmount(loan.getOutstandingAmount() - emi.getPrincipalAmount());
 
-            // Update next due date (find next unpaid EMI)
-            Optional<EmiScheduleEntity> nextEmi = emiScheduleRepository.findByLoanIdAndEmiNumber(
-                    loan.getId(),
-                    emi.getEmiNumber() + 1);
-            if (nextEmi.isPresent()) {
-                loan.setNextDueDate(nextEmi.get().getDueDate());
-            } else {
-                // All EMIs paid - loan fully paid
-                loan.setNextDueDate(null);
+            // Fix 4: Track consecutive payments made while in NPA — need 3 to upgrade to ACTIVE
+            if (LoanStatusEnums.NPA.equals(loan.getLoanStatus().getCode())) {
+                int current = loan.getNpaRecoveryPaymentCount() != null ? loan.getNpaRecoveryPaymentCount() : 0;
+                loan.setNpaRecoveryPaymentCount(current + 1);
             }
+
+            // Fix 3: Set nextDueDate to the earliest unpaid EMI (not blindly emiNumber + 1)
+            Optional<EmiScheduleEntity> nextUnpaid = emiScheduleRepository
+                    .findFirstByLoanIdAndStatusInOrderByEmiNumberAsc(loan.getId(),
+                            List.of(EmiStatusEnums.PENDING, EmiStatusEnums.OVERDUE, EmiStatusEnums.PARTIALLY_PAID));
+            loan.setNextDueDate(nextUnpaid.map(EmiScheduleEntity::getDueDate).orElse(null));
 
             loan = loanRepo.save(loan);
         }
@@ -155,7 +197,6 @@ public class EmiPaymentService {
         // Re-fetch loan to return updated status
         loan = loanRepo.findById(loan.getId()).orElse(loan);
         return toDto(payment, emi, loan);
-
     }
 
     private PaymentResponseDto toDto(EmiPaymentEntity payment, EmiScheduleEntity emi, LoanEntity loan) {

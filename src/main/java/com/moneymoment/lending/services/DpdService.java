@@ -133,7 +133,13 @@ public class DpdService {
         if (!currentCode.equals("CLOSED")) {
             if (highestDpd == 0) {
                 int paidEmis = loan.getNumberOfPaidEmis() != null ? loan.getNumberOfPaidEmis() : 0;
-                newStatusCode = paidEmis > 0 ? "ACTIVE" : "DISBURSED";
+                if ("NPA".equals(currentCode)) {
+                    // Fix 4: NPA upgrade requires 3 consecutive payments after last overdue
+                    int recoveryCount = loan.getNpaRecoveryPaymentCount() != null ? loan.getNpaRecoveryPaymentCount() : 0;
+                    newStatusCode = recoveryCount >= 3 ? "ACTIVE" : "NPA";
+                } else {
+                    newStatusCode = paidEmis > 0 ? "ACTIVE" : "DISBURSED";
+                }
             } else if (highestDpd < 90) {
                 newStatusCode = "OVERDUE";
             } else {
@@ -221,6 +227,13 @@ public class DpdService {
             if (loan.getHighestDpd() == null || highestDpd > loan.getHighestDpd()) {
                 loan.setHighestDpd(highestDpd);
             }
+
+            // Fix 4: Reset NPA recovery counter if a new EMI just became overdue this cycle
+            int previousOverdueCount = loan.getNumberOfOverdueEmis() != null ? loan.getNumberOfOverdueEmis() : 0;
+            if ((int) overdueCount > previousOverdueCount) {
+                loan.setNpaRecoveryPaymentCount(0);
+            }
+
             loan.setNumberOfOverdueEmis((int) overdueCount);
             loan.setTotalOverdueAmount(totalOverdue);
 
@@ -229,7 +242,13 @@ public class DpdService {
                 String newStatusCode;
                 if (highestDpd == 0) {
                     int paidEmis = loan.getNumberOfPaidEmis() != null ? loan.getNumberOfPaidEmis() : 0;
-                    newStatusCode = paidEmis > 0 ? "ACTIVE" : "DISBURSED";
+                    if ("NPA".equals(currentCode)) {
+                        // Fix 4: NPA upgrade requires 3 consecutive payments after last overdue
+                        int recoveryCount = loan.getNpaRecoveryPaymentCount() != null ? loan.getNpaRecoveryPaymentCount() : 0;
+                        newStatusCode = recoveryCount >= 3 ? "ACTIVE" : "NPA";
+                    } else {
+                        newStatusCode = paidEmis > 0 ? "ACTIVE" : "DISBURSED";
+                    }
                 } else if (highestDpd < 90) {
                     newStatusCode = "OVERDUE";
                 } else {
