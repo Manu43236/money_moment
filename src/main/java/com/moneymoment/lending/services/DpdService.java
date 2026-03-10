@@ -5,6 +5,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.moneymoment.lending.common.exception.ResourceNotFoundException;
@@ -33,7 +34,7 @@ public class DpdService {
         this.loanRepo = loanRepo;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public EmiScheduleEntity calculateDpdForEmi(Long emiScheduleId) {
 
         // 1. Fetch EMI
@@ -80,7 +81,7 @@ public class DpdService {
         updateLoanStatus(loanId);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String updateLoanStatus(Long loanId) {
         // 1. Fetch loan
         LoanEntity loan = loanRepo.findById(loanId)

@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.moneymoment.lending.common.response.PagedResponse;
@@ -40,7 +41,7 @@ public class PenaltyService {
         this.loanPenaltyRepository = loanPenaltyRepository;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public LoanPenaltyEntity applyPenalty(Long emiScheduleId, String penaltyCode) {
 
         // Step 1: Fetch EMI Schedule
