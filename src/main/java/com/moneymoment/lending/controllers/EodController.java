@@ -3,6 +3,7 @@ package com.moneymoment.lending.controllers;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
 import com.moneymoment.lending.common.response.PagedResponse;
+import com.moneymoment.lending.dtos.EodJobDetailDto;
 import com.moneymoment.lending.dtos.EodJobStatus;
 import com.moneymoment.lending.dtos.EodLogResponseDto;
 import com.moneymoment.lending.services.EodAsyncExecutor;
@@ -49,5 +51,11 @@ public class EodController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.success(eodService.getHistory(page, size), "EOD history fetched"));
+    }
+
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'BRANCH_MANAGER', 'REGIONAL_MANAGER', 'CHIEF_CREDIT_OFFICER')")
+    @GetMapping("/history/{jobId}")
+    public ResponseEntity<ApiResponse<EodJobDetailDto>> getJobDetail(@PathVariable String jobId) {
+        return ResponseEntity.ok(ApiResponse.success(eodService.getJobDetail(jobId), "EOD job detail fetched"));
     }
 }

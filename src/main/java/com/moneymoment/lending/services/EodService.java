@@ -7,17 +7,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moneymoment.lending.common.response.PagedResponse;
+import com.moneymoment.lending.dtos.EodJobDetailDto;
 import com.moneymoment.lending.dtos.EodJobStatus;
 import com.moneymoment.lending.dtos.EodLogResponseDto;
+import com.moneymoment.lending.dtos.EodPhaseDetailDto;
 import com.moneymoment.lending.dtos.EodPhaseResult;
 import com.moneymoment.lending.entities.EodLogEntity;
+import com.moneymoment.lending.entities.EodPhaseLogEntity;
 import com.moneymoment.lending.repos.EmiScheduleRepository;
 import com.moneymoment.lending.repos.EodLogRepository;
+import com.moneymoment.lending.repos.EodPhaseLogRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,6 +35,8 @@ public class EodService {
     private final PenaltyService penaltyService;
     private final EmiScheduleRepository emiScheduleRepository;
     private final EodLogRepository eodLogRepository;
+    private final EodPhaseLogRepository eodPhaseLogRepository;
+    private final ObjectMapper objectMapper;
     private final PreEodService preEodService;
     private final InterestAccrualService interestAccrualService;
     private final NachProcessingService nachProcessingService;
@@ -47,6 +55,8 @@ public class EodService {
             PenaltyService penaltyService,
             EmiScheduleRepository emiScheduleRepository,
             EodLogRepository eodLogRepository,
+            EodPhaseLogRepository eodPhaseLogRepository,
+            ObjectMapper objectMapper,
             PreEodService preEodService,
             InterestAccrualService interestAccrualService,
             NachProcessingService nachProcessingService,
@@ -61,6 +71,8 @@ public class EodService {
         this.penaltyService = penaltyService;
         this.emiScheduleRepository = emiScheduleRepository;
         this.eodLogRepository = eodLogRepository;
+        this.eodPhaseLogRepository = eodPhaseLogRepository;
+        this.objectMapper = objectMapper;
         this.preEodService = preEodService;
         this.interestAccrualService = interestAccrualService;
         this.nachProcessingService = nachProcessingService;
@@ -178,6 +190,7 @@ public class EodService {
         phase.setStartTime(LocalDateTime.now());
         job.setCurrentPhaseNumber(phaseNumber);
         currentJob.set(job);
+        savePhaseLog(job.getJobId(), phase);
 
         log.info("--- Phase {} START: {} ---", phaseNumber, phase.getPhaseName());
 
@@ -196,6 +209,30 @@ public class EodService {
             phase.setEndTime(LocalDateTime.now());
             phase.setDurationSeconds(Duration.between(phase.getStartTime(), phase.getEndTime()).getSeconds());
             currentJob.set(job);
+            savePhaseLog(job.getJobId(), phase);
+        }
+    }
+
+    private void savePhaseLog(String jobId, EodPhaseResult phase) {
+        try {
+            EodPhaseLogEntity entity = eodPhaseLogRepository
+                    .findByJobIdAndPhaseNumber(jobId, phase.getPhaseNumber())
+                    .orElse(new EodPhaseLogEntity());
+            entity.setJobId(jobId);
+            entity.setPhaseNumber(phase.getPhaseNumber());
+            entity.setPhaseName(phase.getPhaseName());
+            entity.setDescription(phase.getDescription());
+            entity.setStatus(phase.getStatus());
+            entity.setStartTime(phase.getStartTime());
+            entity.setEndTime(phase.getEndTime());
+            entity.setDurationSeconds(phase.getDurationSeconds());
+            entity.setError(phase.getError());
+            if (phase.getMetrics() != null && !phase.getMetrics().isEmpty()) {
+                entity.setMetricsJson(objectMapper.writeValueAsString(phase.getMetrics()));
+            }
+            eodPhaseLogRepository.save(entity);
+        } catch (Exception e) {
+            log.error("Failed to save phase log for phase {}: {}", phase.getPhaseNumber(), e.getMessage());
         }
     }
 
@@ -325,6 +362,77 @@ public class EodService {
         EodJobStatus status = new EodJobStatus();
         status.setStatus("IDLE");
         return status;
+    }
+
+    @SuppressWarnings("unchecked")
+    public EodJobDetailDto getJobDetail(String jobId) {
+        EodJobStatus current = currentJob.get();
+
+        // If it's the live job (running or just completed), return in-memory data
+        if (jobId.equals(current.getJobId())) {
+            EodJobDetailDto dto = new EodJobDetailDto();
+            dto.setLive("RUNNING".equals(current.getStatus()));
+
+            EodLogResponseDto summary = new EodLogResponseDto();
+            summary.setJobId(current.getJobId());
+            summary.setRunDate(current.getStartTime());
+            summary.setCompletedAt(current.getEndTime());
+            summary.setDurationSeconds(current.getDurationSeconds());
+            summary.setStatus(current.getStatus());
+            summary.setTriggeredBy(current.getTriggeredBy());
+            dto.setSummary(summary);
+
+            List<EodPhaseDetailDto> phases = new ArrayList<>();
+            if (current.getPhases() != null) {
+                for (EodPhaseResult p : current.getPhases()) {
+                    EodPhaseDetailDto pd = new EodPhaseDetailDto();
+                    pd.setPhaseNumber(p.getPhaseNumber());
+                    pd.setPhaseName(p.getPhaseName());
+                    pd.setDescription(p.getDescription());
+                    pd.setStatus(p.getStatus());
+                    pd.setStartTime(p.getStartTime());
+                    pd.setEndTime(p.getEndTime());
+                    pd.setDurationSeconds(p.getDurationSeconds());
+                    pd.setMetrics(p.getMetrics());
+                    pd.setError(p.getError());
+                    phases.add(pd);
+                }
+            }
+            dto.setPhases(phases);
+            return dto;
+        }
+
+        // Historical job — load from DB
+        EodLogEntity eodLogEntity = eodLogRepository.findByJobId(jobId)
+                .orElseThrow(() -> new com.moneymoment.lending.common.exception.ResourceNotFoundException("EOD Job", "jobId", jobId));
+        List<EodPhaseLogEntity> phaseEntities = eodPhaseLogRepository.findByJobIdOrderByPhaseNumberAsc(jobId);
+
+        EodJobDetailDto dto = new EodJobDetailDto();
+        dto.setLive(false);
+        dto.setSummary(toDto(eodLogEntity));
+
+        List<EodPhaseDetailDto> phases = phaseEntities.stream().map(p -> {
+            EodPhaseDetailDto pd = new EodPhaseDetailDto();
+            pd.setPhaseNumber(p.getPhaseNumber());
+            pd.setPhaseName(p.getPhaseName());
+            pd.setDescription(p.getDescription());
+            pd.setStatus(p.getStatus());
+            pd.setStartTime(p.getStartTime());
+            pd.setEndTime(p.getEndTime());
+            pd.setDurationSeconds(p.getDurationSeconds());
+            pd.setError(p.getError());
+            if (p.getMetricsJson() != null) {
+                try {
+                    pd.setMetrics(objectMapper.readValue(p.getMetricsJson(), Map.class));
+                } catch (Exception e) {
+                    log.warn("Failed to parse metrics JSON for phase {}: {}", p.getPhaseNumber(), e.getMessage());
+                }
+            }
+            return pd;
+        }).collect(Collectors.toList());
+
+        dto.setPhases(phases);
+        return dto;
     }
 
     public PagedResponse<EodLogResponseDto> getHistory(int page, int size) {

@@ -1,5 +1,7 @@
 package com.moneymoment.lending.repos;
 
+import java.util.Optional;
+
 import com.moneymoment.lending.entities.EodLogEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,4 +11,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface EodLogRepository extends JpaRepository<EodLogEntity, Long> {
     Page<EodLogEntity> findAllByOrderByRunDateDesc(Pageable pageable);
+    Optional<EodLogEntity> findByJobId(String jobId);
 }
