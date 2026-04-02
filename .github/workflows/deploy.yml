@@ -30,8 +30,8 @@ jobs:
           chmod 400 /tmp/ec2_key.pem
           scp -o StrictHostKeyChecking=no -i /tmp/ec2_key.pem \
             target/lending-platform-0.0.1-SNAPSHOT.jar \
-            ubuntu@3.108.56.58:/home/ubuntu/app/lending-platform.jar
+            ubuntu@13.234.38.91:/home/ubuntu/app/lending-platform.jar
           ssh -o StrictHostKeyChecking=no -i /tmp/ec2_key.pem \
-            ubuntu@3.108.56.58 \
+            ubuntu@13.234.38.91 \
             "sudo systemctl restart finpulse && sleep 20 && sudo systemctl is-active finpulse"
           rm -f /tmp/ec2_key.pem
