@@ -40,13 +40,15 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final LoginAuditService loginAuditService;
 
     UserService(UserRepository userRepository, RoleRepository roleRepository,
-            PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+            PasswordEncoder passwordEncoder, JwtUtil jwtUtil, LoginAuditService loginAuditService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.loginAuditService = loginAuditService;
     }
 
     @Transactional
@@ -236,16 +238,22 @@ public class UserService {
     }
 
     // Login
-    @Transactional(readOnly = true)
-    public LoginResponseDto login(LoginRequestDto request) {
-        UserEntity user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "username", request.getUsername()));
+    @Transactional
+    public LoginResponseDto login(LoginRequestDto request, String ipAddress) {
+        UserEntity user = userRepository.findByUsername(request.getUsername()).orElse(null);
+
+        if (user == null) {
+            loginAuditService.recordFailure(request.getUsername(), ipAddress, "User not found");
+            throw new ResourceNotFoundException("User", "username", request.getUsername());
+        }
 
         if (!user.getIsActive()) {
+            loginAuditService.recordFailure(request.getUsername(), ipAddress, "Account inactive");
             throw new RuntimeException("User account is inactive");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            loginAuditService.recordFailure(request.getUsername(), ipAddress, "Invalid password");
             throw new RuntimeException("Invalid username or password");
         }
 
@@ -268,7 +276,13 @@ public class UserService {
                 .collect(Collectors.joining(","));
         response.setToken(jwtUtil.generateToken(user.getUsername(), user.getEmployeeId(), roles));
 
+        loginAuditService.recordSuccess(user.getId(), user.getUsername(), ipAddress);
+
         return response;
+    }
+
+    public void logout(String username) {
+        loginAuditService.recordLogout(username);
     }
 
     // Get my profile
