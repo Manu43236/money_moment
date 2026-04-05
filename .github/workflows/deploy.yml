@@ -29,7 +29,7 @@ jobs:
           EC2_HOST: 13.206.81.60
           EC2_USER: ubuntu
         run: |
-          echo "$SSH_KEY" > /tmp/ec2_key.pem
+          printf '%s\n' "$SSH_KEY" > /tmp/ec2_key.pem
           chmod 400 /tmp/ec2_key.pem
           SSH="ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i /tmp/ec2_key.pem $EC2_USER@$EC2_HOST"
           SCP="scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i /tmp/ec2_key.pem"
