@@ -1,8 +1,9 @@
-name: Deploy to EC2
+name: Deploy Backend to EC2
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:  # allows manual trigger from GitHub Actions tab
 
 jobs:
   deploy:
@@ -25,13 +26,42 @@ jobs:
       - name: Deploy to EC2
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: 13.206.81.60
+          EC2_USER: ubuntu
         run: |
           echo "$SSH_KEY" > /tmp/ec2_key.pem
           chmod 400 /tmp/ec2_key.pem
-          scp -o StrictHostKeyChecking=no -i /tmp/ec2_key.pem \
-            target/lending-platform-0.0.1-SNAPSHOT.jar \
-            ubuntu@13.206.81.60:/home/ubuntu/app/lending-platform.jar
-          ssh -o StrictHostKeyChecking=no -i /tmp/ec2_key.pem \
-            ubuntu@13.206.81.60 \
-            "sudo systemctl restart finpulse && sleep 20 && sudo systemctl is-active finpulse"
+          SSH="ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i /tmp/ec2_key.pem $EC2_USER@$EC2_HOST"
+          SCP="scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i /tmp/ec2_key.pem"
+
+          echo ">>> Backing up old JAR..."
+          $SSH "cp /home/ubuntu/app/lending-platform.jar /home/ubuntu/app/lending-platform.jar.bak 2>/dev/null || true"
+
+          echo ">>> Uploading new JAR..."
+          $SCP target/lending-platform-0.0.1-SNAPSHOT.jar $EC2_USER@$EC2_HOST:/home/ubuntu/app/lending-platform.jar
+
+          echo ">>> Restarting service..."
+          $SSH "sudo systemctl restart finpulse"
+
+          echo ">>> Waiting for app to start..."
+          sleep 15
+
+          echo ">>> Health check..."
+          for i in {1..10}; do
+            STATUS=$($SSH "curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/health" 2>/dev/null)
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed (attempt $i)"
+              break
+            fi
+            echo "Attempt $i: got $STATUS, retrying in 5s..."
+            sleep 5
+            if [ $i -eq 10 ]; then
+              echo "Health check failed — rolling back..."
+              $SSH "cp /home/ubuntu/app/lending-platform.jar.bak /home/ubuntu/app/lending-platform.jar && sudo systemctl restart finpulse"
+              rm -f /tmp/ec2_key.pem
+              exit 1
+            fi
+          done
+
+          echo ">>> Backend deployed successfully!"
           rm -f /tmp/ec2_key.pem
