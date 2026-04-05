@@ -44,11 +44,11 @@ jobs:
           $SSH "sudo systemctl restart finpulse"
 
           echo ">>> Waiting for app to start..."
-          sleep 15
+          sleep 30
 
           echo ">>> Health check..."
           for i in {1..10}; do
-            STATUS=$($SSH "curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/health" 2>/dev/null)
+            STATUS=$($SSH "curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/health" 2>/dev/null) || STATUS="000"
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed (attempt $i)"
               break
