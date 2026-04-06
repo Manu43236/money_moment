@@ -25,11 +25,13 @@ import com.moneymoment.lending.repos.AiKycExtractionRepository;
 @Service
 public class AiKycService {
 
-    @Value("${gemini.api.key}")
+    @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${gemini.model:gemini-1.5-flash}")
-    private String model;
+    @Value("${groq.model.vision:llama-3.2-11b-vision-preview}")
+    private String visionModel;
+
+    private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     private final AiKycExtractionRepository kycRepo;
     private final RestTemplate restTemplate;
@@ -78,44 +80,44 @@ public class AiKycService {
         try {
             String base64 = Base64.getEncoder().encodeToString(file.getBytes());
             String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+            String dataUrl = "data:" + mimeType + ";base64," + base64;
 
             String prompt = docType.equals("PAN")
-                    ? "Extract the PAN number (10-character alphanumeric like ABCDE1234F) and the full name from this PAN card image. Respond ONLY with valid JSON: {\"number\": \"<pan>\", \"name\": \"<FULL NAME IN UPPERCASE>\"}"
-                    : "Extract the Aadhaar number (12 digits, remove spaces) and the full name from this Aadhaar card image. Respond ONLY with valid JSON: {\"number\": \"<12digits>\", \"name\": \"<FULL NAME IN UPPERCASE>\"}";
+                    ? "Extract the PAN number (10-character alphanumeric like ABCDE1234F) and the full name from this PAN card. Respond ONLY with valid JSON: {\"number\": \"<pan>\", \"name\": \"<FULL NAME IN UPPERCASE>\"}"
+                    : "Extract the Aadhaar number (12 digits, remove any spaces) and the full name from this Aadhaar card. Respond ONLY with valid JSON: {\"number\": \"<12digits>\", \"name\": \"<FULL NAME IN UPPERCASE>\"}";
 
-            // Build Gemini request with inline image
-            Map<String, Object> inlineData = new HashMap<>();
-            inlineData.put("mimeType", mimeType);
-            inlineData.put("data", base64);
+            // Groq vision uses OpenAI-compatible format with image_url
+            Map<String, Object> imageContent = new HashMap<>();
+            imageContent.put("type", "image_url");
+            imageContent.put("image_url", Map.of("url", dataUrl));
 
-            Map<String, Object> imagePart = new HashMap<>();
-            imagePart.put("inlineData", inlineData);
+            Map<String, Object> textContent = new HashMap<>();
+            textContent.put("type", "text");
+            textContent.put("text", prompt);
 
-            Map<String, Object> textPart = new HashMap<>();
-            textPart.put("text", prompt);
+            List<Object> contentParts = new ArrayList<>();
+            contentParts.add(imageContent);
+            contentParts.add(textContent);
 
-            List<Object> parts = new ArrayList<>();
-            parts.add(imagePart);
-            parts.add(textPart);
-
-            Map<String, Object> content = new HashMap<>();
-            content.put("parts", parts);
+            Map<String, Object> userMessage = new HashMap<>();
+            userMessage.put("role", "user");
+            userMessage.put("content", contentParts);
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("contents", List.of(content));
-            requestBody.put("generationConfig", Map.of("maxOutputTokens", 256, "temperature", 0.0));
-
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/"
-                    + model + ":generateContent?key=" + apiKey;
+            requestBody.put("model", visionModel);
+            requestBody.put("messages", List.of(userMessage));
+            requestBody.put("max_tokens", 256);
+            requestBody.put("temperature", 0);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);
+
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
             ResponseEntity<Map<String, Object>> response = restTemplate.postForEntity(
-                    url, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
+                    GROQ_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
 
-            String text = extractTextFromGeminiResponse(response.getBody());
+            String text = extractTextFromResponse(response.getBody());
             text = text.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
 
             JsonNode json = objectMapper.readTree(text);
@@ -123,23 +125,21 @@ public class AiKycService {
             if (json.has("name")) result.put("name", json.get("name").asText().toUpperCase().trim());
 
         } catch (Exception e) {
-            // Return empty on failure — chat will ask user to re-upload
+            System.err.println("[KYC ERROR] " + e.getClass().getSimpleName() + ": " + e.getMessage());
         }
 
         return result;
     }
 
     @SuppressWarnings("unchecked")
-    private String extractTextFromGeminiResponse(Map<String, Object> body) {
+    private String extractTextFromResponse(Map<String, Object> body) {
         if (body == null) return "{}";
         try {
-            List<Map<String, Object>> candidates = (List<Map<String, Object>>) body.get("candidates");
-            if (candidates == null || candidates.isEmpty()) return "{}";
-            Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
-            List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-            if (parts == null || parts.isEmpty()) return "{}";
-            Object text = parts.get(0).get("text");
-            return text != null ? text.toString() : "{}";
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) body.get("choices");
+            if (choices == null || choices.isEmpty()) return "{}";
+            Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+            Object content = message.get("content");
+            return content != null ? content.toString() : "{}";
         } catch (Exception e) {
             return "{}";
         }
@@ -149,9 +149,6 @@ public class AiKycService {
         return s != null && !s.isEmpty();
     }
 
-    /**
-     * Fuzzy name match — handles initials (e.g. "R SHARMA" vs "RAHUL SHARMA").
-     */
     private double calculateNameMatchScore(String name1, String name2) {
         String n1 = name1.toUpperCase().trim();
         String n2 = name2.toUpperCase().trim();
