@@ -25,13 +25,13 @@ import com.moneymoment.lending.repos.AiKycExtractionRepository;
 @Service
 public class AiKycService {
 
-    @Value("${groq.api.key}")
+    @Value("${openai.api.key}")
     private String apiKey;
 
-    @Value("${groq.model.vision:llama-3.2-11b-vision-preview}")
+    @Value("${openai.model.vision:gpt-4o-mini}")
     private String visionModel;
 
-    private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+    private static final String OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
     private final AiKycExtractionRepository kycRepo;
     private final RestTemplate restTemplate;
@@ -86,7 +86,7 @@ public class AiKycService {
                     ? "Extract the PAN number (10-character alphanumeric like ABCDE1234F) and the full name from this PAN card. Respond ONLY with valid JSON: {\"number\": \"<pan>\", \"name\": \"<FULL NAME IN UPPERCASE>\"}"
                     : "Extract the Aadhaar number (12 digits, remove any spaces) and the full name from this Aadhaar card. Respond ONLY with valid JSON: {\"number\": \"<12digits>\", \"name\": \"<FULL NAME IN UPPERCASE>\"}";
 
-            // Groq vision uses OpenAI-compatible format with image_url
+            // OpenAI vision format with image_url
             Map<String, Object> imageContent = new HashMap<>();
             imageContent.put("type", "image_url");
             imageContent.put("image_url", Map.of("url", dataUrl));
@@ -115,7 +115,7 @@ public class AiKycService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             ResponseEntity<Map<String, Object>> response = restTemplate.postForEntity(
-                    GROQ_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
+                    OPENAI_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
 
             String text = extractTextFromResponse(response.getBody());
             text = text.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
