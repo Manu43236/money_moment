@@ -44,19 +44,21 @@ jobs:
           $SSH "sudo systemctl restart finpulse"
 
           echo ">>> Waiting for app to start..."
-          sleep 30
+          sleep 60
 
           echo ">>> Health check..."
-          for i in {1..10}; do
+          for i in {1..15}; do
             STATUS=$($SSH "curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/health" 2>/dev/null) || STATUS="000"
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed (attempt $i)"
               break
             fi
-            echo "Attempt $i: got $STATUS, retrying in 5s..."
-            sleep 5
-            if [ $i -eq 10 ]; then
-              echo "Health check failed — rolling back..."
+            echo "Attempt $i: got $STATUS, retrying in 10s..."
+            sleep 10
+            if [ $i -eq 15 ]; then
+              echo "Health check failed — printing logs..."
+              $SSH "sudo journalctl -u finpulse -n 50 --no-pager"
+              echo ">>> Rolling back..."
               $SSH "cp /home/ubuntu/app/lending-platform.jar.bak /home/ubuntu/app/lending-platform.jar && sudo systemctl restart finpulse"
               rm -f /tmp/ec2_key.pem
               exit 1
