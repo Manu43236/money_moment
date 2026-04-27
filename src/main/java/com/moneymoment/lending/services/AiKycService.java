@@ -25,13 +25,13 @@ import com.moneymoment.lending.repos.AiKycExtractionRepository;
 @Service
 public class AiKycService {
 
-    @Value("${openai.api.key}")
+    @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${openai.model.vision:gpt-4o-mini}")
+    @Value("${groq.model.vision:llama-3.2-11b-vision-preview}")
     private String visionModel;
 
-    private static final String OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+    private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     private final AiKycExtractionRepository kycRepo;
     private final RestTemplate restTemplate;
@@ -115,7 +115,7 @@ public class AiKycService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             ResponseEntity<Map<String, Object>> response = restTemplate.postForEntity(
-                    OPENAI_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
+                    GROQ_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
 
             String text = extractTextFromResponse(response.getBody());
             text = text.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();

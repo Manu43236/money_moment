@@ -28,7 +28,7 @@ jobs:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_HOST: 13.206.81.60
           EC2_USER: ubuntu
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           echo "$SSH_KEY" | base64 -d > /tmp/ec2_key.pem
           chmod 400 /tmp/ec2_key.pem
@@ -37,7 +37,7 @@ jobs:
 
           echo ">>> Writing environment config..."
           $SSH "sudo mkdir -p /etc/systemd/system/finpulse.service.d"
-          $SSH "printf '[Service]\nEnvironment=\"OPENAI_API_KEY=${OPENAI_API_KEY}\"\n' | sudo tee /etc/systemd/system/finpulse.service.d/override.conf > /dev/null"
+          $SSH "printf '[Service]\nEnvironment=\"GROQ_API_KEY=${GROQ_API_KEY}\"\n' | sudo tee /etc/systemd/system/finpulse.service.d/override.conf > /dev/null"
           $SSH "sudo systemctl daemon-reload"
 
           echo ">>> Backing up old JAR..."

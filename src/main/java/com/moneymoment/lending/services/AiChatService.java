@@ -37,13 +37,13 @@ import com.moneymoment.lending.repos.UserRepository;
 @Service
 public class AiChatService {
 
-    @Value("${openai.api.key}")
+    @Value("${groq.api.key}")
     private String apiKey;
 
-    @Value("${openai.model.chat:gpt-4o-mini}")
+    @Value("${groq.model.chat:llama-3.3-70b-versatile}")
     private String chatModel;
 
-    private static final String OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+    private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     private final AiChatSessionRepository sessionRepo;
     private final AiChatMessageRepository messageRepo;
@@ -147,7 +147,7 @@ public class AiChatService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             ResponseEntity<Map<String, Object>> response = restTemplate.postForEntity(
-                    OPENAI_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
+                    GROQ_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
 
             Map<String, Object> body = response.getBody();
             if (body == null) return "Sorry, I couldn't process that.";
@@ -170,10 +170,10 @@ public class AiChatService {
             return content != null ? content.toString().trim() : "Sorry, I couldn't generate a response.";
 
         } catch (HttpClientErrorException e) {
-            System.err.println("[OpenAI ERROR] " + e.getStatusCode() + " — " + e.getResponseBodyAsString());
+            System.err.println("[Groq ERROR] " + e.getStatusCode() + " — " + e.getResponseBodyAsString());
             return "I'm having some trouble right now. Please try again in a moment.";
         } catch (Exception e) {
-            System.err.println("[OpenAI ERROR] " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            System.err.println("[Groq ERROR] " + e.getClass().getSimpleName() + ": " + e.getMessage());
             return "I'm having some trouble right now. Please try again in a moment.";
         }
     }
@@ -212,7 +212,7 @@ public class AiChatService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(followUp, headers);
             ResponseEntity<Map<String, Object>> followUpResponse = restTemplate.postForEntity(
-                    OPENAI_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
+                    GROQ_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
 
             Map<String, Object> followUpBody = followUpResponse.getBody();
             if (followUpBody == null) return result;
