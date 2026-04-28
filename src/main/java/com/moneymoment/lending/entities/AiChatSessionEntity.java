@@ -56,6 +56,9 @@ public class AiChatSessionEntity {
     @JoinColumn(name = "created_loan_id")
     private LoanEntity createdLoan;
 
+    @Column(length = 10)
+    private String customerAction; // "CREATED" or "FOUND"
+
     @Column
     private LocalDateTime expiresAt;
 

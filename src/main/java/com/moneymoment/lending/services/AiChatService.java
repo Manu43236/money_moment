@@ -115,6 +115,7 @@ public class AiChatService {
                 response.setCreatedCustomerId(c.getId());
                 response.setCreatedCustomerNumber(c.getCustomerNumber());
                 response.setCreatedCustomerName(c.getName());
+                response.setCustomerAction(session.getCustomerAction());
             });
         }
         if (session.getCreatedLoan() != null) {
@@ -258,6 +259,7 @@ public class AiChatService {
 
             com.moneymoment.lending.entities.CustomerEntity c = found.get();
             session.setCreatedCustomer(customerRepo.getReferenceById(c.getId()));
+            session.setCustomerAction("FOUND");
             sessionRepo.save(session);
             return String.format("Customer found! ID: %d, Name: %s, Customer Number: %s",
                     c.getId(), c.getName(), c.getCustomerNumber());
@@ -295,6 +297,7 @@ public class AiChatService {
 
             CustomerResponseDto created = customerService.createCustomer(dto);
             session.setCreatedCustomer(customerRepo.getReferenceById(created.getId()));
+            session.setCustomerAction("CREATED");
             session.setStatus(AiSessionStatus.ACTIVE);
             sessionRepo.save(session);
 

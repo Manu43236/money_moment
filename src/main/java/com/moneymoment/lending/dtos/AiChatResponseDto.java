@@ -14,6 +14,7 @@ public class AiChatResponseDto {
     private Long createdCustomerId;
     private String createdCustomerNumber;
     private String createdCustomerName;
+    private String customerAction; // "CREATED" or "FOUND"
     private Long createdLoanId;
     private String createdLoanNumber;
     private KycSummaryDto kycSummary;
