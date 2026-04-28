@@ -1,5 +1,7 @@
 package com.moneymoment.lending.dtos;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,4 +20,6 @@ public class AiChatResponseDto {
     private Long createdLoanId;
     private String createdLoanNumber;
     private KycSummaryDto kycSummary;
+    private List<String> options;  // quick-reply buttons to show
+    private boolean hideInput;     // hide text input when options are shown
 }

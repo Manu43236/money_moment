@@ -103,12 +103,34 @@ public class AiChatService {
     @Transactional
     protected AiChatResponseDto persistReply(ChatContext ctx, String assistantReply) {
         AiChatSessionEntity session = sessionRepo.findById(ctx.session.getId()).orElse(ctx.session);
-        saveMessage(session, AiMessageRole.ASSISTANT, assistantReply);
+
+        // Parse structured JSON response from AI
+        String displayReply = assistantReply;
+        java.util.List<String> options = new java.util.ArrayList<>();
+        boolean hideInput = false;
+        try {
+            com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(assistantReply);
+            if (node.has("message")) {
+                displayReply = node.get("message").asText();
+                if (node.has("options") && node.get("options").isArray()) {
+                    for (com.fasterxml.jackson.databind.JsonNode opt : node.get("options")) {
+                        options.add(opt.asText());
+                    }
+                }
+                hideInput = node.has("hideInput") && node.get("hideInput").asBoolean();
+            }
+        } catch (Exception ignored) {
+            // Not JSON — use as plain text
+        }
+
+        saveMessage(session, AiMessageRole.ASSISTANT, displayReply);
 
         AiChatResponseDto response = new AiChatResponseDto();
         response.setSessionId(session.getSessionUuid());
         response.setSessionStatus(session.getStatus().name());
-        response.setReply(assistantReply);
+        response.setReply(displayReply);
+        response.setOptions(options.isEmpty() ? null : options);
+        response.setHideInput(hideInput);
 
         if (session.getCreatedCustomer() != null) {
             customerRepo.findById(session.getCreatedCustomer().getId()).ifPresent(c -> {
@@ -168,14 +190,14 @@ public class AiChatService {
             }
 
             Object content = message.get("content");
-            return content != null ? content.toString().trim() : "Sorry, I couldn't generate a response.";
+            return content != null ? content.toString().trim() : "{\"message\":\"Sorry, I couldn't generate a response.\",\"options\":[],\"hideInput\":false}";
 
         } catch (HttpClientErrorException e) {
             System.err.println("[Groq ERROR] " + e.getStatusCode() + " — " + e.getResponseBodyAsString());
-            return "I'm having some trouble right now. Please try again in a moment.";
+            return "{\"message\":\"I'm having some trouble right now. Please try again in a moment.\",\"options\":[],\"hideInput\":false}";
         } catch (Exception e) {
             System.err.println("[Groq ERROR] " + e.getClass().getSimpleName() + ": " + e.getMessage());
-            return "I'm having some trouble right now. Please try again in a moment.";
+            return "{\"message\":\"I'm having some trouble right now. Please try again in a moment.\",\"options\":[],\"hideInput\":false}";
         }
     }
 
@@ -227,7 +249,7 @@ public class AiChatService {
 
         } catch (Exception e) {
             System.err.println("[ToolCall ERROR] " + e.getMessage());
-            return "There was an error processing your request: " + e.getMessage();
+            return "{\"message\":\"There was an error processing your request.\",\"options\":[],\"hideInput\":false}";
         }
     }
 
@@ -429,58 +451,63 @@ public class AiChatService {
     // ─── System Prompt ────────────────────────────────────────────────────────
 
     private String buildSystemPrompt() {
-        String loanTypes = masterService.getAllLoanTypes().stream()
-                .map(t -> t.getCode() + " (" + t.getName() + ")")
-                .collect(Collectors.joining(", "));
+        String loanTypeOptions = masterService.getAllLoanTypes().stream()
+                .map(t -> t.getName() + " (" + t.getCode() + ")")
+                .collect(Collectors.joining("\", \"", "[\"", "\"]"));
 
-        String loanPurposes = masterService.getAllLoanPurposes().stream()
-                .map(p -> p.getCode() + " (" + p.getName() + ")")
-                .collect(Collectors.joining(", "));
+        String loanPurposeOptions = masterService.getAllLoanPurposes().stream()
+                .map(p -> p.getName() + " (" + p.getCode() + ")")
+                .collect(Collectors.joining("\", \"", "[\"", "\"]"));
 
-        return """
-                You are a friendly onboarding assistant for FinPulse, a lending management system.
-                You help staff create customers and loan applications through conversation.
-
-                === FLOW A — CUSTOMER CREATION ===
-                When the user wants to create a new customer, collect these ONE at a time:
-                1. Full name
-                2. Date of birth (DD/MM/YYYY)
-                3. PAN number (10-char alphanumeric, e.g. ABCDE1234F)
-                4. Aadhaar number (12 digits)
-                5. Mobile number (10 digits)
-                6. Email address
-                7. Residential address
-                8. Employment type — Salaried or Self-Employed
-                9. Employer name / Occupation
-                10. Monthly income
-                Show summary → "Shall I create the customer? (yes/no)" → on yes → call create_customer.
-                After creating, ask: "Would you like to apply for a loan for this customer?"
-
-                === FLOW B — LOAN APPLICATION ===
-                When the user wants to create a loan application, first ask:
-                "Is this for an existing customer or a new one?"
-                - If EXISTING: ask for the customer's registered mobile number → call lookup_customer with the phone number.
-                - If NEW: complete FLOW A first, then continue with loan.
-
-                Then collect loan details ONE at a time:
-                1. Loan type. Available: """ + loanTypes + """
-
-                2. Loan amount and tenure in months
-                3. Loan purpose. Available: """ + loanPurposes + """
-
-                4. Bank account number
-                5. IFSC code
-                Show summary → "Shall I create the loan application? (yes/no)" → on yes → call create_loan.
-
-                === RULES ===
-                - Ask ONE question at a time. Be friendly and concise.
-                - Extract multiple fields if user provides them together.
-                  E.g. "salaried at Infosys, 75k/month" → SALARIED, Infosys, 75000
-                - Number conversions: 80k=80000, 5L=500000, 1Cr=10000000
-                - DOB: DD/MM/YYYY → YYYY-MM-DDTHH:mm:ss (e.g. 15/05/1990 → 1990-05-15T00:00:00)
-                - PAN: uppercase as typed. Aadhaar: digits only (no spaces).
-                - NEVER call a function until the user confirms with yes.
-                """;
+        return "You are a guided onboarding assistant for FinPulse, a lending management system.\n"
+            + "You help staff onboard customers and create loan applications step by step.\n\n"
+            + "=== CRITICAL: RESPONSE FORMAT ===\n"
+            + "You MUST ALWAYS respond in valid JSON with exactly these fields:\n"
+            + "{\"message\": \"...\", \"options\": [...], \"hideInput\": true/false}\n"
+            + "- options: array of clickable choices. Use [] when free text input is needed.\n"
+            + "- hideInput: true when options are shown. false when user needs to type.\n"
+            + "- NEVER respond with plain text. ALWAYS valid JSON.\n\n"
+            + "=== GUIDED FLOW ===\n\n"
+            + "STEP 1 - START\n"
+            + "Always begin with: {\"message\": \"Welcome to FinPulse! What would you like to do?\", "
+            + "\"options\": [\"Create Loan for Existing Customer\", \"Create New Customer + Loan\"], \"hideInput\": true}\n\n"
+            + "STEP 2A - EXISTING CUSTOMER\n"
+            + "Ask: {\"message\": \"Please enter the customer's registered 10-digit mobile number.\", \"options\": [], \"hideInput\": false}\n"
+            + "Then call lookup_customer with the phone number.\n"
+            + "After found: show customer name and proceed to loan type step.\n\n"
+            + "STEP 2B - NEW CUSTOMER\n"
+            + "Collect fields ONE at a time (hideInput: false for all text inputs):\n"
+            + "1. Full name\n2. Date of birth (DD/MM/YYYY)\n3. PAN number\n4. Aadhaar (12 digits)\n"
+            + "5. Mobile number\n6. Email\n7. Address\n"
+            + "8. Employment type → {\"options\": [\"Salaried\", \"Self-Employed\"], \"hideInput\": true}\n"
+            + "9. Employer name / Occupation\n10. Monthly income\n"
+            + "Show summary → {\"options\": [\"Yes, Create Customer\", \"No, Review Again\"], \"hideInput\": true}\n"
+            + "On confirm → call create_customer.\n\n"
+            + "STEP 3 - LOAN TYPE\n"
+            + "Ask: {\"message\": \"What type of loan?\", \"options\": " + loanTypeOptions + ", \"hideInput\": true}\n\n"
+            + "STEP 4 - LOAN AMOUNT\n"
+            + "Ask: {\"message\": \"Enter the loan amount (e.g. 5L, 2Cr, 500000).\", \"options\": [], \"hideInput\": false}\n\n"
+            + "STEP 5 - TENURE\n"
+            + "Ask: {\"message\": \"Select loan tenure.\", "
+            + "\"options\": [\"12 months\", \"24 months\", \"36 months\", \"48 months\", \"60 months\", \"84 months\", \"120 months\"], "
+            + "\"hideInput\": true}\n\n"
+            + "STEP 6 - LOAN PURPOSE\n"
+            + "Ask: {\"message\": \"What is the purpose of this loan?\", \"options\": " + loanPurposeOptions + ", \"hideInput\": true}\n\n"
+            + "STEP 7 - BANK DETAILS\n"
+            + "Ask bank account number, then IFSC code (hideInput: false each).\n\n"
+            + "STEP 8 - CONFIRM LOAN\n"
+            + "Show full summary → {\"options\": [\"Yes, Create Loan Application\", \"No, Review Again\"], \"hideInput\": true}\n"
+            + "On confirm → call create_loan.\n\n"
+            + "=== RULES ===\n"
+            + "- ONE question at a time.\n"
+            + "- Number conversions: 80k=80000, 5L=500000, 1Cr=10000000\n"
+            + "- DOB: DD/MM/YYYY to YYYY-MM-DDTHH:mm:ss (e.g. 15/05/1990 to 1990-05-15T00:00:00)\n"
+            + "- PAN: uppercase. Aadhaar: digits only (no spaces).\n"
+            + "- Extract loanTypeCode from option (e.g. Personal Loan (PL) → PL)\n"
+            + "- Extract loanPurposeCode from option (e.g. Medical (MEDICAL) → MEDICAL)\n"
+            + "- Extract tenureMonths from option (e.g. 36 months → 36)\n"
+            + "- NEVER call a function until user confirms with yes.\n"
+            + "- ALWAYS return valid JSON. No plain text ever.\n";
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
