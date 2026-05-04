@@ -34,7 +34,13 @@ public class AiChatController {
         String username = userDetails != null ? userDetails.getUsername() : "system";
         String sessionId = body.get("sessionId");
         String message = body.get("message");
-        AiChatResponseDto response = aiChatService.chat(sessionId, message, username);
+
+        Long customerId = null;
+        if (body.get("customerId") != null) {
+            try { customerId = Long.parseLong(body.get("customerId")); } catch (Exception ignored) {}
+        }
+
+        AiChatResponseDto response = aiChatService.chat(sessionId, message, username, customerId);
         return ResponseEntity.ok(ApiResponse.success(response, "OK"));
     }
 }

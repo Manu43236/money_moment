@@ -81,9 +81,9 @@ public class AiChatService {
 
     // ─── Public entry point ───────────────────────────────────────────────────
 
-    public AiChatResponseDto chat(String sessionId, String userMessage, String username) {
+    public AiChatResponseDto chat(String sessionId, String userMessage, String username, Long frontendCustomerId) {
         ChatContext ctx = persistIncoming(sessionId, userMessage, username);
-        String assistantReply = callGroq(ctx.session, ctx.history, username);
+        String assistantReply = callGroq(ctx.session, ctx.history, username, frontendCustomerId);
         return persistReply(ctx, assistantReply);
     }
 
@@ -157,7 +157,7 @@ public class AiChatService {
     // ─── Groq API ─────────────────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
-    private String callGroq(AiChatSessionEntity session, List<AiChatMessageEntity> history, String username) {
+    private String callGroq(AiChatSessionEntity session, List<AiChatMessageEntity> history, String username, Long frontendCustomerId) {
         try {
             List<Map<String, Object>> messages = buildMessages(history);
 
@@ -189,7 +189,7 @@ public class AiChatService {
             if ("tool_calls".equals(finishReason)) {
                 List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) message.get("tool_calls");
                 if (toolCalls != null && !toolCalls.isEmpty()) {
-                    return handleToolCall(toolCalls.get(0), message, messages, session, username);
+                    return handleToolCall(toolCalls.get(0), message, messages, session, username, frontendCustomerId);
                 }
             }
 
@@ -208,7 +208,7 @@ public class AiChatService {
 
     @SuppressWarnings("unchecked")
     private String handleToolCall(Map<String, Object> toolCall, Map<String, Object> assistantMessage,
-            List<Map<String, Object>> messages, AiChatSessionEntity session, String username) {
+            List<Map<String, Object>> messages, AiChatSessionEntity session, String username, Long frontendCustomerId) {
         try {
             String toolCallId = (String) toolCall.get("id");
             Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
@@ -216,7 +216,7 @@ public class AiChatService {
             String argumentsJson = (String) function.get("arguments");
 
             Map<String, Object> args = objectMapper.readValue(argumentsJson, Map.class);
-            String result = executeFunction(functionName, args, session, username);
+            String result = executeFunction(functionName, args, session, username, frontendCustomerId);
 
             // Build follow-up: history + assistant tool_call + tool result + JSON reminder
             List<Map<String, Object>> updatedMessages = new ArrayList<>(messages);
@@ -263,12 +263,12 @@ public class AiChatService {
     }
 
     private String executeFunction(String name, Map<String, Object> args,
-            AiChatSessionEntity session, String username) {
+            AiChatSessionEntity session, String username, Long frontendCustomerId) {
         if ("create_customer".equals(name))      return executeCreateCustomer(args, session, username);
-        if ("create_loan".equals(name))          return executeCreateLoan(args, session, username);
+        if ("create_loan".equals(name))          return executeCreateLoan(args, session, username, frontendCustomerId);
         if ("lookup_customer".equals(name))      return executeLookupCustomer(args, session);
-        if ("check_eligibility".equals(name))    return executeCheckEligibility(args, session);
-        if ("check_documents".equals(name))      return executeCheckDocuments(args, session);
+        if ("check_eligibility".equals(name))    return executeCheckEligibility(args, session, frontendCustomerId);
+        if ("check_documents".equals(name))      return executeCheckDocuments(args, session, frontendCustomerId);
         return "Unknown function: " + name;
     }
 
@@ -357,11 +357,11 @@ public class AiChatService {
 
     @Transactional
     protected String executeCreateLoan(Map<String, Object> input,
-            AiChatSessionEntity session, String username) {
+            AiChatSessionEntity session, String username, Long frontendCustomerId) {
         try {
             LoanRequestDto dto = new LoanRequestDto();
-            Long customerId = null;
-            if (input.get("customerId") != null) {
+            Long customerId = frontendCustomerId;
+            if (customerId == null && input.get("customerId") != null) {
                 try { customerId = Long.parseLong(input.get("customerId").toString()); } catch (Exception ignored) {}
             }
             if (customerId == null && session.getCreatedCustomer() != null)
@@ -394,10 +394,10 @@ public class AiChatService {
     }
 
     @Transactional
-    protected String executeCheckEligibility(Map<String, Object> args, AiChatSessionEntity session) {
+    protected String executeCheckEligibility(Map<String, Object> args, AiChatSessionEntity session, Long frontendCustomerId) {
         try {
-            Long customerId = null;
-            if (args.get("customerId") != null) {
+            Long customerId = frontendCustomerId;
+            if (customerId == null && args.get("customerId") != null) {
                 try { customerId = Long.parseLong(args.get("customerId").toString()); } catch (Exception ignored) {}
             }
             if (customerId == null && session.getCreatedCustomer() != null)
@@ -466,10 +466,10 @@ public class AiChatService {
     }
 
     @Transactional
-    protected String executeCheckDocuments(Map<String, Object> args, AiChatSessionEntity session) {
+    protected String executeCheckDocuments(Map<String, Object> args, AiChatSessionEntity session, Long frontendCustomerId) {
         try {
-            Long customerId = null;
-            if (args.get("customerId") != null) {
+            Long customerId = frontendCustomerId;
+            if (customerId == null && args.get("customerId") != null) {
                 try { customerId = Long.parseLong(args.get("customerId").toString()); } catch (Exception ignored) {}
             }
             if (customerId == null && session.getCreatedCustomer() != null)
@@ -554,7 +554,6 @@ public class AiChatService {
 
         // check_eligibility
         Map<String, Object> eligProps = new HashMap<>();
-        eligProps.put("customerId", Map.of("type", "number", "description", "Customer ID from lookup result"));
         eligProps.put("loanTypeCode", Map.of("type", "string", "description", "Loan type code e.g. PL, HL, BL, EL, VL"));
         eligProps.put("loanAmount", Map.of("type", "number", "description", "Requested loan amount in INR"));
         eligProps.put("tenureMonths", Map.of("type", "number", "description", "Loan tenure in months"));
@@ -584,7 +583,6 @@ public class AiChatService {
 
         // create_loan
         Map<String, Object> loanProps = new HashMap<>();
-        loanProps.put("customerId", Map.of("type", "number", "description", "Customer ID"));
         loanProps.put("loanTypeCode", Map.of("type", "string", "description", "Loan type code: PL, HL, BL, EL, VL"));
         loanProps.put("loanPurposeCode", Map.of("type", "string", "description", "Purpose code: MEDICAL, HOME_PURCHASE, BUSINESS_EXPANSION, EDUCATION, VEHICLE_PURCHASE, PERSONAL"));
         loanProps.put("purpose", Map.of("type", "string", "description", "Brief purpose description"));
@@ -596,15 +594,13 @@ public class AiChatService {
                 "name", "create_loan",
                 "description", "Create a loan application. Call ONLY after eligibility checked, all fields collected, and user confirms.",
                 "parameters", Map.of("type", "object", "properties", loanProps,
-                        "required", List.of("customerId", "loanTypeCode", "loanPurposeCode", "loanAmount", "tenureMonths")))));
+                        "required", List.of("loanTypeCode", "loanPurposeCode", "loanAmount", "tenureMonths")))));
 
         // check_documents
-        Map<String, Object> docProps = new HashMap<>();
-        docProps.put("customerId", Map.of("type", "number", "description", "Customer ID"));
         tools.add(Map.of("type", "function", "function", Map.of(
                 "name", "check_documents",
-                "description", "Check documents on file for a customer. Returns count and status of uploaded documents.",
-                "parameters", Map.of("type", "object", "properties", docProps, "required", List.of()))));
+                "description", "Check documents on file for the current customer. Returns count and status of uploaded documents.",
+                "parameters", Map.of("type", "object", "properties", new HashMap<>(), "required", List.of()))));
 
         return tools;
     }
