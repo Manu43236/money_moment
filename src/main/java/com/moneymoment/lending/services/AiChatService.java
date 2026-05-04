@@ -360,10 +360,13 @@ public class AiChatService {
             AiChatSessionEntity session, String username) {
         try {
             LoanRequestDto dto = new LoanRequestDto();
-            if (input.get("customerId") != null)
-                dto.setCustomerId(Long.parseLong(input.get("customerId").toString()));
-            else if (session.getCreatedCustomer() != null)
-                dto.setCustomerId(session.getCreatedCustomer().getId());
+            Long customerId = null;
+            if (input.get("customerId") != null) {
+                try { customerId = Long.parseLong(input.get("customerId").toString()); } catch (Exception ignored) {}
+            }
+            if (customerId == null && session.getCreatedCustomer() != null)
+                customerId = session.getCreatedCustomer().getId();
+            dto.setCustomerId(customerId);
 
             if (input.get("loanTypeCode") != null) dto.setLoanTypeCode(input.get("loanTypeCode").toString());
             if (input.get("loanPurposeCode") != null) dto.setLoanPurposeCode(input.get("loanPurposeCode").toString());
@@ -395,10 +398,10 @@ public class AiChatService {
         try {
             Long customerId = null;
             if (args.get("customerId") != null) {
-                customerId = Long.parseLong(args.get("customerId").toString());
-            } else if (session.getCreatedCustomer() != null) {
-                customerId = session.getCreatedCustomer().getId();
+                try { customerId = Long.parseLong(args.get("customerId").toString()); } catch (Exception ignored) {}
             }
+            if (customerId == null && session.getCreatedCustomer() != null)
+                customerId = session.getCreatedCustomer().getId();
             if (customerId == null) return "Customer not found. Please look up the customer first.";
 
             String loanTypeCode = args.get("loanTypeCode") != null ? args.get("loanTypeCode").toString() : null;
@@ -467,10 +470,10 @@ public class AiChatService {
         try {
             Long customerId = null;
             if (args.get("customerId") != null) {
-                customerId = Long.parseLong(args.get("customerId").toString());
-            } else if (session.getCreatedCustomer() != null) {
-                customerId = session.getCreatedCustomer().getId();
+                try { customerId = Long.parseLong(args.get("customerId").toString()); } catch (Exception ignored) {}
             }
+            if (customerId == null && session.getCreatedCustomer() != null)
+                customerId = session.getCreatedCustomer().getId();
             if (customerId == null) return "Customer not found. Cannot check documents.";
 
             var docs = documentRepository.findByCustomerId(customerId);
