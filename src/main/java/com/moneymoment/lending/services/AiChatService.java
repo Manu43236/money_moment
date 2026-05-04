@@ -199,10 +199,44 @@ public class AiChatService {
 
         } catch (HttpClientErrorException e) {
             System.err.println("[Groq ERROR] " + e.getStatusCode() + " — " + e.getResponseBodyAsString());
-            return fallbackJson("I'm having some trouble right now. Please try again in a moment.");
+            if (e.getStatusCode().value() == 429) {
+                // Rate limit — wait 2s and retry once
+                try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                try {
+                    HttpHeaders retryHeaders = new HttpHeaders();
+                    retryHeaders.setContentType(MediaType.APPLICATION_JSON);
+                    retryHeaders.setBearerAuth(apiKey);
+                    Map<String, Object> retryBody = new HashMap<>();
+                    retryBody.put("model", chatModel);
+                    retryBody.put("messages", buildMessages(history));
+                    retryBody.put("tools", buildTools());
+                    retryBody.put("tool_choice", "auto");
+                    retryBody.put("max_tokens", 1024);
+                    retryBody.put("temperature", 0.3);
+                    HttpEntity<Map<String, Object>> retryEntity = new HttpEntity<>(retryBody, retryHeaders);
+                    ResponseEntity<Map<String, Object>> retryResponse = restTemplate.postForEntity(
+                            GROQ_URL, retryEntity, (Class<Map<String, Object>>) (Class<?>) Map.class);
+                    Map<String, Object> retryRespBody = retryResponse.getBody();
+                    if (retryRespBody != null) {
+                        List<Map<String, Object>> retryChoices = (List<Map<String, Object>>) retryRespBody.get("choices");
+                        if (retryChoices != null && !retryChoices.isEmpty()) {
+                            Map<String, Object> retryMsg = (Map<String, Object>) retryChoices.get(0).get("message");
+                            Object content = retryMsg.get("content");
+                            return ensureJson(content != null ? content.toString().trim() : "");
+                        }
+                    }
+                } catch (Exception retryEx) {
+                    System.err.println("[Groq RETRY ERROR] " + retryEx.getMessage());
+                }
+                return fallbackJson("The AI assistant is temporarily busy. Please wait a few seconds and send your message again.");
+            }
+            if (e.getStatusCode().value() == 401) {
+                return fallbackJson("AI service configuration error. Please contact your system administrator.");
+            }
+            return fallbackJson("Unable to process your request at the moment. Please try again.");
         } catch (Exception e) {
             System.err.println("[Groq ERROR] " + e.getClass().getSimpleName() + ": " + e.getMessage());
-            return fallbackJson("I'm having some trouble right now. Please try again in a moment.");
+            return fallbackJson("Something went wrong. Please try sending your message again.");
         }
     }
 
@@ -258,7 +292,7 @@ public class AiChatService {
 
         } catch (Exception e) {
             System.err.println("[ToolCall ERROR] " + e.getMessage());
-            return fallbackJson("There was an error processing your request.");
+            return fallbackJson("Unable to complete that action. Please try again or restart the conversation.");
         }
     }
 
@@ -516,10 +550,15 @@ public class AiChatService {
         List<Map<String, Object>> messages = new ArrayList<>();
         messages.add(Map.of("role", "system", "content", buildSystemPrompt()));
 
+        // Limit to last 15 messages to stay within token limits
+        List<AiChatMessageEntity> recentHistory = history.size() > 15
+                ? history.subList(history.size() - 15, history.size())
+                : history;
+
         String currentRole = null;
         StringBuilder currentText = new StringBuilder();
 
-        for (AiChatMessageEntity msg : history) {
+        for (AiChatMessageEntity msg : recentHistory) {
             String role = msg.getRole() == AiMessageRole.USER ? "user" : "assistant";
             if (role.equals(currentRole)) {
                 currentText.append("\n").append(msg.getContent());
