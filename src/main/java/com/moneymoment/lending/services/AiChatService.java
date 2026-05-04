@@ -20,6 +20,8 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moneymoment.lending.common.enums.AiMessageRole;
 import com.moneymoment.lending.common.enums.AiSessionStatus;
+import com.moneymoment.lending.common.enums.DocumentStatusEnums;
+import com.moneymoment.lending.common.utils.EmiCalculator;
 import com.moneymoment.lending.dtos.AiChatResponseDto;
 import com.moneymoment.lending.dtos.CustomerRequestDto;
 import com.moneymoment.lending.dtos.CustomerResponseDto;
@@ -27,10 +29,12 @@ import com.moneymoment.lending.dtos.LoanRequestDto;
 import com.moneymoment.lending.dtos.LoanResponseDto;
 import com.moneymoment.lending.entities.AiChatMessageEntity;
 import com.moneymoment.lending.entities.AiChatSessionEntity;
+import com.moneymoment.lending.entities.CustomerEntity;
 import com.moneymoment.lending.master.MasterService;
 import com.moneymoment.lending.repos.AiChatMessageRepository;
 import com.moneymoment.lending.repos.AiChatSessionRepository;
 import com.moneymoment.lending.repos.CustomerRepository;
+import com.moneymoment.lending.repos.DocumentRepository;
 import com.moneymoment.lending.repos.LoanRepo;
 import com.moneymoment.lending.repos.UserRepository;
 
@@ -53,13 +57,15 @@ public class AiChatService {
     private final CustomerRepository customerRepo;
     private final LoanRepo loanRepo;
     private final MasterService masterService;
+    private final DocumentRepository documentRepository;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
     AiChatService(AiChatSessionRepository sessionRepo, AiChatMessageRepository messageRepo,
             CustomerService customerService, LoanService loanService,
             UserRepository userRepo, CustomerRepository customerRepo,
-            LoanRepo loanRepo, MasterService masterService) {
+            LoanRepo loanRepo, MasterService masterService,
+            DocumentRepository documentRepository) {
         this.sessionRepo = sessionRepo;
         this.messageRepo = messageRepo;
         this.customerService = customerService;
@@ -68,6 +74,7 @@ public class AiChatService {
         this.customerRepo = customerRepo;
         this.loanRepo = loanRepo;
         this.masterService = masterService;
+        this.documentRepository = documentRepository;
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
     }
@@ -75,7 +82,6 @@ public class AiChatService {
     // ─── Public entry point ───────────────────────────────────────────────────
 
     public AiChatResponseDto chat(String sessionId, String userMessage, String username) {
-
         ChatContext ctx = persistIncoming(sessionId, userMessage, username);
         String assistantReply = callGroq(ctx.session, ctx.history, username);
         return persistReply(ctx, assistantReply);
@@ -85,29 +91,28 @@ public class AiChatService {
 
     @Transactional
     protected ChatContext persistIncoming(String sessionId, String userMessage, String username) {
-
         AiChatSessionEntity session = loadOrCreateSession(sessionId, username);
 
         if (userMessage != null && !userMessage.isBlank()) {
             saveMessage(session, AiMessageRole.USER, userMessage);
         } else {
-            saveMessage(session, AiMessageRole.USER, "Hi, I want to create a new customer.");
+            saveMessage(session, AiMessageRole.USER, "Hi, I want to create a loan application.");
         }
 
         List<AiChatMessageEntity> history = messageRepo.findBySessionOrderByCreatedAtAsc(session);
         return new ChatContext(session, history);
     }
 
-    // ─── Phase 3: save reply and return ──────────────────────────────────────
+    // ─── Phase 2: save reply and return ──────────────────────────────────────
 
     @Transactional
     protected AiChatResponseDto persistReply(ChatContext ctx, String assistantReply) {
         AiChatSessionEntity session = sessionRepo.findById(ctx.session.getId()).orElse(ctx.session);
 
-        // Parse structured JSON response from AI
         String displayReply = assistantReply;
-        java.util.List<String> options = new java.util.ArrayList<>();
+        List<String> options = new ArrayList<>();
         boolean hideInput = false;
+
         try {
             com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(assistantReply);
             if (node.has("message")) {
@@ -162,7 +167,7 @@ public class AiChatService {
             requestBody.put("tools", buildTools());
             requestBody.put("tool_choice", "auto");
             requestBody.put("max_tokens", 2048);
-            requestBody.put("temperature", 0.7);
+            requestBody.put("temperature", 0.3);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -173,15 +178,14 @@ public class AiChatService {
                     GROQ_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
 
             Map<String, Object> body = response.getBody();
-            if (body == null) return "Sorry, I couldn't process that.";
+            if (body == null) return fallbackJson("Sorry, I couldn't process that.");
 
             List<Map<String, Object>> choices = (List<Map<String, Object>>) body.get("choices");
-            if (choices == null || choices.isEmpty()) return "Sorry, no response from AI.";
+            if (choices == null || choices.isEmpty()) return fallbackJson("Sorry, no response from AI.");
 
             Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
             String finishReason = (String) choices.get(0).get("finish_reason");
 
-            // Tool call
             if ("tool_calls".equals(finishReason)) {
                 List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) message.get("tool_calls");
                 if (toolCalls != null && !toolCalls.isEmpty()) {
@@ -190,14 +194,15 @@ public class AiChatService {
             }
 
             Object content = message.get("content");
-            return content != null ? content.toString().trim() : "{\"message\":\"Sorry, I couldn't generate a response.\",\"options\":[],\"hideInput\":false}";
+            String raw = content != null ? content.toString().trim() : "";
+            return ensureJson(raw);
 
         } catch (HttpClientErrorException e) {
             System.err.println("[Groq ERROR] " + e.getStatusCode() + " — " + e.getResponseBodyAsString());
-            return "{\"message\":\"I'm having some trouble right now. Please try again in a moment.\",\"options\":[],\"hideInput\":false}";
+            return fallbackJson("I'm having some trouble right now. Please try again in a moment.");
         } catch (Exception e) {
             System.err.println("[Groq ERROR] " + e.getClass().getSimpleName() + ": " + e.getMessage());
-            return "{\"message\":\"I'm having some trouble right now. Please try again in a moment.\",\"options\":[],\"hideInput\":false}";
+            return fallbackJson("I'm having some trouble right now. Please try again in a moment.");
         }
     }
 
@@ -213,21 +218,24 @@ public class AiChatService {
             Map<String, Object> args = objectMapper.readValue(argumentsJson, Map.class);
             String result = executeFunction(functionName, args, session, username);
 
-            // Build follow-up: history + assistant tool_call message + tool result
+            // Build follow-up: history + assistant tool_call + tool result + JSON reminder
             List<Map<String, Object>> updatedMessages = new ArrayList<>(messages);
-            updatedMessages.add(assistantMessage); // assistant message with tool_calls
+            updatedMessages.add(assistantMessage);
 
             Map<String, Object> toolResultMsg = new HashMap<>();
             toolResultMsg.put("role", "tool");
             toolResultMsg.put("tool_call_id", toolCallId);
-            toolResultMsg.put("content", result);
+            // Append JSON format reminder so the follow-up always returns structured JSON
+            toolResultMsg.put("content", result
+                    + "\n\n[SYSTEM: You MUST respond in valid JSON: "
+                    + "{\"message\": \"...\", \"options\": [...], \"hideInput\": true/false}]");
             updatedMessages.add(toolResultMsg);
 
             Map<String, Object> followUp = new HashMap<>();
             followUp.put("model", chatModel);
             followUp.put("messages", updatedMessages);
             followUp.put("max_tokens", 1024);
-            followUp.put("temperature", 0.7);
+            followUp.put("temperature", 0.3);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -238,28 +246,33 @@ public class AiChatService {
                     GROQ_URL, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
 
             Map<String, Object> followUpBody = followUpResponse.getBody();
-            if (followUpBody == null) return result;
+            if (followUpBody == null) return fallbackJson(result);
 
             List<Map<String, Object>> choices = (List<Map<String, Object>>) followUpBody.get("choices");
-            if (choices == null || choices.isEmpty()) return result;
+            if (choices == null || choices.isEmpty()) return fallbackJson(result);
 
             Map<String, Object> msg = (Map<String, Object>) choices.get(0).get("message");
             Object content = msg.get("content");
-            return content != null ? content.toString().trim() : result;
+            String raw = content != null ? content.toString().trim() : "";
+            return ensureJson(raw);
 
         } catch (Exception e) {
             System.err.println("[ToolCall ERROR] " + e.getMessage());
-            return "{\"message\":\"There was an error processing your request.\",\"options\":[],\"hideInput\":false}";
+            return fallbackJson("There was an error processing your request.");
         }
     }
 
     private String executeFunction(String name, Map<String, Object> args,
             AiChatSessionEntity session, String username) {
-        if ("create_customer".equals(name)) return executeCreateCustomer(args, session, username);
-        if ("create_loan".equals(name)) return executeCreateLoan(args, session, username);
-        if ("lookup_customer".equals(name)) return executeLookupCustomer(args, session);
+        if ("create_customer".equals(name))      return executeCreateCustomer(args, session, username);
+        if ("create_loan".equals(name))          return executeCreateLoan(args, session, username);
+        if ("lookup_customer".equals(name))      return executeLookupCustomer(args, session);
+        if ("check_eligibility".equals(name))    return executeCheckEligibility(args, session);
+        if ("check_documents".equals(name))      return executeCheckDocuments(args, session);
         return "Unknown function: " + name;
     }
+
+    // ─── Tool Implementations ─────────────────────────────────────────────────
 
     @Transactional
     protected String executeLookupCustomer(Map<String, Object> args, AiChatSessionEntity session) {
@@ -267,7 +280,7 @@ public class AiChatService {
             String phone = args.get("phone") != null ? args.get("phone").toString().trim() : null;
             String customerNumber = args.get("customerNumber") != null ? args.get("customerNumber").toString().trim() : null;
 
-            java.util.Optional<com.moneymoment.lending.entities.CustomerEntity> found =
+            java.util.Optional<CustomerEntity> found =
                     (phone != null && !phone.isEmpty())
                             ? customerRepo.findByPhone(phone)
                             : (customerNumber != null && !customerNumber.isEmpty()
@@ -275,16 +288,28 @@ public class AiChatService {
                                     : java.util.Optional.empty());
 
             if (found.isEmpty()) {
-                String identifier = phone != null ? "mobile number: " + phone : "customer number: " + customerNumber;
+                String identifier = phone != null ? "mobile number " + phone : "customer number " + customerNumber;
                 return "No customer found with " + identifier + ". Please verify and try again.";
             }
 
-            com.moneymoment.lending.entities.CustomerEntity c = found.get();
+            CustomerEntity c = found.get();
+            if (!Boolean.TRUE.equals(c.getIsActive())) {
+                return "Customer account is inactive. Please contact support.";
+            }
+
             session.setCreatedCustomer(customerRepo.getReferenceById(c.getId()));
             session.setCustomerAction("FOUND");
             sessionRepo.save(session);
-            return String.format("Customer found! ID: %d, Name: %s, Customer Number: %s",
-                    c.getId(), c.getName(), c.getCustomerNumber());
+
+            double salary = c.getMonthlySalary() != null ? c.getMonthlySalary() : 0;
+            double creditScore = c.getCreditScore() != null ? c.getCreditScore() : 0;
+            String risk = creditScore >= 750 ? "LOW" : creditScore >= 650 ? "MEDIUM" : "HIGH";
+
+            return String.format(
+                    "Customer found! ID: %d | Name: %s | Customer No: %s | " +
+                    "Monthly Income: ₹%.0f | Credit Score: %.1f | Risk: %s",
+                    c.getId(), c.getName(), c.getCustomerNumber(), salary, creditScore, risk);
+
         } catch (Exception e) {
             return "Error looking up customer: " + e.getMessage();
         }
@@ -323,8 +348,8 @@ public class AiChatService {
             session.setStatus(AiSessionStatus.ACTIVE);
             sessionRepo.save(session);
 
-            return String.format("Customer created! Customer Number: %s, Name: %s, ID: %d",
-                    created.getCustomerNumber(), created.getName(), created.getId());
+            return String.format("Customer created! ID: %d | Customer Number: %s | Name: %s",
+                    created.getId(), created.getCustomerNumber(), created.getName());
         } catch (Exception e) {
             return "Error creating customer: " + e.getMessage();
         }
@@ -354,7 +379,10 @@ public class AiChatService {
             session.setStatus(AiSessionStatus.COMPLETED);
             sessionRepo.save(session);
 
-            return String.format("Loan created! Loan Number: %s, Amount: ₹%.0f, EMI: ₹%.0f/month, Tenure: %d months.",
+            return String.format(
+                    "Loan application created! Loan Number: %s | Amount: ₹%.0f | " +
+                    "EMI: ₹%.0f/month | Tenure: %d months | Status: INITIATED. " +
+                    "Next steps: Upload and verify required documents, then proceed with credit assessment from the main application.",
                     created.getLoanNumber(), created.getLoanAmount(),
                     created.getEmiAmount(), created.getTenureMonths());
         } catch (Exception e) {
@@ -362,15 +390,129 @@ public class AiChatService {
         }
     }
 
+    @Transactional
+    protected String executeCheckEligibility(Map<String, Object> args, AiChatSessionEntity session) {
+        try {
+            Long customerId = null;
+            if (args.get("customerId") != null) {
+                customerId = Long.parseLong(args.get("customerId").toString());
+            } else if (session.getCreatedCustomer() != null) {
+                customerId = session.getCreatedCustomer().getId();
+            }
+            if (customerId == null) return "Customer not found. Please look up the customer first.";
+
+            String loanTypeCode = args.get("loanTypeCode") != null ? args.get("loanTypeCode").toString() : null;
+            if (loanTypeCode == null) return "Loan type is required for eligibility check.";
+
+            double loanAmount = Double.parseDouble(args.get("loanAmount").toString());
+            int tenureMonths = Integer.parseInt(args.get("tenureMonths").toString());
+
+            CustomerEntity customer = customerRepo.findById(customerId)
+                    .orElseThrow(() -> new RuntimeException("Customer not found"));
+
+            double salary = customer.getMonthlySalary() != null ? customer.getMonthlySalary() : 0;
+            double creditScore = customer.getCreditScore() != null ? customer.getCreditScore() : 0;
+
+            double rate;
+            try {
+                rate = masterService.getApplicableInterestRate(loanTypeCode, creditScore, loanAmount, tenureMonths);
+            } catch (Exception e) {
+                // Fallback: try with a broader amount range by using a default rate lookup
+                rate = masterService.getAllInterestRateConfigs().stream()
+                        .filter(c -> c.getLoanType().getCode().equals(loanTypeCode) && c.getIsActive())
+                        .filter(c -> creditScore >= c.getMinCreditScore() && creditScore <= c.getMaxCreditScore())
+                        .mapToDouble(c -> c.getInterestRate())
+                        .findFirst()
+                        .orElse(12.0); // default fallback rate
+            }
+
+            double proposedEmi = EmiCalculator.calculateEmi(loanAmount, rate, tenureMonths);
+            double foir = salary > 0 ? (proposedEmi / salary) * 100 : 100;
+
+            // Max eligible amount at 50% FOIR
+            double maxEmi = salary * 0.50;
+            double monthlyRate = rate / 12 / 100;
+            double onePlusRPowerN = Math.pow(1 + monthlyRate, tenureMonths);
+            double maxEligible = monthlyRate > 0
+                    ? Math.floor((maxEmi * (onePlusRPowerN - 1)) / (monthlyRate * onePlusRPowerN))
+                    : 0;
+
+            boolean eligible = creditScore >= 650 && foir <= 50 && salary >= 15000;
+            String risk = creditScore >= 750 ? "LOW" : creditScore >= 650 ? "MEDIUM" : "HIGH";
+
+            String foirStatus = foir <= 50 ? "✓ Within limit (50%)" : "✗ Exceeds limit (50%)";
+
+            return String.format(
+                    "Eligibility Result for %s | " +
+                    "Monthly Income: ₹%.0f | Credit Score: %.1f | Risk Category: %s | " +
+                    "Requested: ₹%.0f | Interest Rate: %.2f%% p.a. | " +
+                    "Proposed EMI: ₹%.0f/month | FOIR: %.1f%% %s | " +
+                    "Max Eligible Amount: ₹%.0f | " +
+                    "Eligible: %s%s",
+                    customer.getName(), salary, creditScore, risk,
+                    loanAmount, rate,
+                    proposedEmi, foir, foirStatus,
+                    maxEligible,
+                    eligible ? "YES" : "NO",
+                    !eligible && loanAmount > maxEligible
+                            ? String.format(". Consider reducing amount to ₹%.0f.", maxEligible) : "");
+
+        } catch (Exception e) {
+            return "Error checking eligibility: " + e.getMessage();
+        }
+    }
+
+    @Transactional
+    protected String executeCheckDocuments(Map<String, Object> args, AiChatSessionEntity session) {
+        try {
+            Long customerId = null;
+            if (args.get("customerId") != null) {
+                customerId = Long.parseLong(args.get("customerId").toString());
+            } else if (session.getCreatedCustomer() != null) {
+                customerId = session.getCreatedCustomer().getId();
+            }
+            if (customerId == null) return "Customer not found. Cannot check documents.";
+
+            var docs = documentRepository.findByCustomerId(customerId);
+
+            if (docs.isEmpty()) {
+                return "No documents found for this customer. " +
+                       "Required documents: Aadhaar, PAN Card, Salary Slips (last 3 months), " +
+                       "Bank Statement (6 months). Please upload via the Documents section in the main application.";
+            }
+
+            long verified = docs.stream()
+                    .filter(d -> DocumentStatusEnums.VERIFIED.equals(d.getUploadStatus())).count();
+            long pending = docs.stream()
+                    .filter(d -> DocumentStatusEnums.UPLOADED.equals(d.getUploadStatus())
+                              || DocumentStatusEnums.PENDING_VERIFICATION.equals(d.getUploadStatus())).count();
+            long rejected = docs.stream()
+                    .filter(d -> DocumentStatusEnums.REJECTED.equals(d.getUploadStatus())).count();
+
+            String docList = docs.stream()
+                    .map(d -> d.getDocumentType().getName() + " [" + d.getUploadStatus() + "]")
+                    .collect(Collectors.joining(", "));
+
+            String readiness = (verified == docs.size())
+                    ? "All documents verified — ready for credit assessment."
+                    : "Documents pending verification: " + pending + ". All must be verified before credit assessment.";
+
+            return String.format(
+                    "Documents on file: %d total (%d verified, %d pending, %d rejected). " +
+                    "Details: %s. %s",
+                    docs.size(), verified, pending, rejected, docList, readiness);
+
+        } catch (Exception e) {
+            return "Error checking documents: " + e.getMessage();
+        }
+    }
+
     // ─── Message Builder ──────────────────────────────────────────────────────
 
     private List<Map<String, Object>> buildMessages(List<AiChatMessageEntity> history) {
         List<Map<String, Object>> messages = new ArrayList<>();
-
-        // System message first
         messages.add(Map.of("role", "system", "content", buildSystemPrompt()));
 
-        // Merge consecutive same-role messages (Groq/OpenAI allows it but cleaner merged)
         String currentRole = null;
         StringBuilder currentText = new StringBuilder();
 
@@ -398,52 +540,68 @@ public class AiChatService {
     private List<Map<String, Object>> buildTools() {
         List<Map<String, Object>> tools = new ArrayList<>();
 
+        // lookup_customer
+        Map<String, Object> lookupProps = new HashMap<>();
+        lookupProps.put("phone", Map.of("type", "string", "description", "Customer's 10-digit mobile number (preferred)"));
+        lookupProps.put("customerNumber", Map.of("type", "string", "description", "Customer number as fallback (e.g. CUST001234)"));
+        tools.add(Map.of("type", "function", "function", Map.of(
+                "name", "lookup_customer",
+                "description", "Look up an existing customer by mobile number or customer number. Returns customer ID, name, income, credit score.",
+                "parameters", Map.of("type", "object", "properties", lookupProps, "required", List.of()))));
+
+        // check_eligibility
+        Map<String, Object> eligProps = new HashMap<>();
+        eligProps.put("customerId", Map.of("type", "number", "description", "Customer ID from lookup result"));
+        eligProps.put("loanTypeCode", Map.of("type", "string", "description", "Loan type code e.g. PL, HL, BL, EL, VL"));
+        eligProps.put("loanAmount", Map.of("type", "number", "description", "Requested loan amount in INR"));
+        eligProps.put("tenureMonths", Map.of("type", "number", "description", "Loan tenure in months"));
+        tools.add(Map.of("type", "function", "function", Map.of(
+                "name", "check_eligibility",
+                "description", "Check customer loan eligibility. Returns FOIR, max eligible amount, proposed EMI, risk category.",
+                "parameters", Map.of("type", "object", "properties", eligProps,
+                        "required", List.of("loanTypeCode", "loanAmount", "tenureMonths")))));
+
         // create_customer
         Map<String, Object> custProps = new HashMap<>();
         custProps.put("name", Map.of("type", "string", "description", "Full name of the customer"));
-        custProps.put("pan", Map.of("type", "string", "description", "PAN number (10-character alphanumeric, e.g. ABCDE1234F)"));
+        custProps.put("pan", Map.of("type", "string", "description", "PAN number (10-char alphanumeric, e.g. ABCDE1234F)"));
         custProps.put("aadhar", Map.of("type", "string", "description", "Aadhaar number (12 digits, no spaces)"));
         custProps.put("phone", Map.of("type", "string", "description", "10-digit mobile number"));
         custProps.put("email", Map.of("type", "string", "description", "Email address"));
-        custProps.put("dob", Map.of("type", "string", "description", "Date of birth in ISO format YYYY-MM-DDTHH:mm:ss"));
+        custProps.put("dob", Map.of("type", "string", "description", "Date of birth ISO format YYYY-MM-DDTHH:mm:ss"));
         custProps.put("address", Map.of("type", "string", "description", "Full residential address"));
         custProps.put("employmentType", Map.of("type", "string", "enum", List.of("SALARIED", "SELF_EMPLOYED")));
         custProps.put("occupation", Map.of("type", "string", "description", "Job title or employer name"));
         custProps.put("monthlySalary", Map.of("type", "number", "description", "Monthly income in INR"));
-
         tools.add(Map.of("type", "function", "function", Map.of(
                 "name", "create_customer",
-                "description", "Creates a new customer. Call ONLY after all fields collected and user confirms.",
+                "description", "Create a new customer. Call ONLY after all fields collected and user confirms.",
                 "parameters", Map.of("type", "object", "properties", custProps,
                         "required", List.of("name", "pan", "aadhar", "phone", "email", "employmentType")))));
 
         // create_loan
         Map<String, Object> loanProps = new HashMap<>();
         loanProps.put("customerId", Map.of("type", "number", "description", "Customer ID"));
-        loanProps.put("loanTypeCode", Map.of("type", "string", "description", "Loan type: PL, HL, BL, EL, VL"));
+        loanProps.put("loanTypeCode", Map.of("type", "string", "description", "Loan type code: PL, HL, BL, EL, VL"));
         loanProps.put("loanPurposeCode", Map.of("type", "string", "description", "Purpose code: MEDICAL, HOME_PURCHASE, BUSINESS_EXPANSION, EDUCATION, VEHICLE_PURCHASE, PERSONAL"));
         loanProps.put("purpose", Map.of("type", "string", "description", "Brief purpose description"));
         loanProps.put("loanAmount", Map.of("type", "number", "description", "Loan amount in INR"));
         loanProps.put("tenureMonths", Map.of("type", "number", "description", "Tenure in months"));
-        loanProps.put("disbursementAccountNumber", Map.of("type", "string", "description", "Bank account number"));
+        loanProps.put("disbursementAccountNumber", Map.of("type", "string", "description", "Bank account number for disbursement"));
         loanProps.put("disbursementIfsc", Map.of("type", "string", "description", "IFSC code"));
-
         tools.add(Map.of("type", "function", "function", Map.of(
                 "name", "create_loan",
-                "description", "Creates a loan application. Call ONLY after all fields collected and user confirms.",
+                "description", "Create a loan application. Call ONLY after eligibility checked, all fields collected, and user confirms.",
                 "parameters", Map.of("type", "object", "properties", loanProps,
                         "required", List.of("customerId", "loanTypeCode", "loanPurposeCode", "loanAmount", "tenureMonths")))));
 
-        // lookup_customer
-        Map<String, Object> lookupProps = new HashMap<>();
-        lookupProps.put("phone", Map.of("type", "string", "description", "Customer's 10-digit mobile number (preferred)"));
-        lookupProps.put("customerNumber", Map.of("type", "string", "description", "Customer number as fallback (e.g. CUST001234)"));
-
+        // check_documents
+        Map<String, Object> docProps = new HashMap<>();
+        docProps.put("customerId", Map.of("type", "number", "description", "Customer ID"));
         tools.add(Map.of("type", "function", "function", Map.of(
-                "name", "lookup_customer",
-                "description", "Look up an existing customer by mobile number or customer number. Returns the customer ID needed for loan creation.",
-                "parameters", Map.of("type", "object", "properties", lookupProps,
-                        "required", List.of()))));
+                "name", "check_documents",
+                "description", "Check documents on file for a customer. Returns count and status of uploaded documents.",
+                "parameters", Map.of("type", "object", "properties", docProps, "required", List.of()))));
 
         return tools;
     }
@@ -459,55 +617,81 @@ public class AiChatService {
                 .map(p -> p.getName() + " (" + p.getCode() + ")")
                 .collect(Collectors.joining("\", \"", "[\"", "\"]"));
 
-        return "You are a guided onboarding assistant for FinPulse, a lending management system.\n"
-            + "You help staff onboard customers and create loan applications step by step.\n\n"
+        return "You are a loan onboarding assistant for FinPulse, a lending management system. "
+            + "You help bank staff create loan applications step by step.\n\n"
+
             + "=== CRITICAL: RESPONSE FORMAT ===\n"
             + "You MUST ALWAYS respond in valid JSON with exactly these fields:\n"
             + "{\"message\": \"...\", \"options\": [...], \"hideInput\": true/false}\n"
-            + "- options: array of clickable choices. Use [] when free text input is needed.\n"
-            + "- hideInput: true when options are shown. false when user needs to type.\n"
-            + "- NEVER respond with plain text. ALWAYS valid JSON.\n\n"
-            + "=== GUIDED FLOW ===\n\n"
-            + "STEP 1 - START\n"
-            + "Always begin with: {\"message\": \"Welcome to FinPulse! What would you like to do?\", "
-            + "\"options\": [\"Create Loan for Existing Customer\", \"Create New Customer + Loan\"], \"hideInput\": true}\n\n"
-            + "STEP 2A - EXISTING CUSTOMER\n"
-            + "Ask: {\"message\": \"Please enter the customer's registered 10-digit mobile number.\", \"options\": [], \"hideInput\": false}\n"
-            + "Then call lookup_customer with the phone number.\n"
-            + "After found: show customer name and proceed to loan type step.\n\n"
-            + "STEP 2B - NEW CUSTOMER\n"
-            + "Collect fields ONE at a time (hideInput: false for all text inputs):\n"
-            + "1. Full name\n2. Date of birth (DD/MM/YYYY)\n3. PAN number\n4. Aadhaar (12 digits)\n"
-            + "5. Mobile number\n6. Email\n7. Address\n"
-            + "8. Employment type → {\"options\": [\"Salaried\", \"Self-Employed\"], \"hideInput\": true}\n"
-            + "9. Employer name / Occupation\n10. Monthly income\n"
-            + "Show summary → {\"options\": [\"Yes, Create Customer\", \"No, Review Again\"], \"hideInput\": true}\n"
-            + "On confirm → call create_customer.\n\n"
-            + "STEP 3 - LOAN TYPE\n"
-            + "Ask: {\"message\": \"What type of loan?\", \"options\": " + loanTypeOptions + ", \"hideInput\": true}\n\n"
-            + "STEP 4 - LOAN AMOUNT\n"
-            + "Ask: {\"message\": \"Enter the loan amount (e.g. 5L, 2Cr, 500000).\", \"options\": [], \"hideInput\": false}\n\n"
-            + "STEP 5 - TENURE\n"
-            + "Ask: {\"message\": \"Select loan tenure.\", "
-            + "\"options\": [\"12 months\", \"24 months\", \"36 months\", \"48 months\", \"60 months\", \"84 months\", \"120 months\"], "
+            + "- options: [] when free text is needed, array of choices otherwise\n"
+            + "- hideInput: true when showing options, false when user needs to type\n"
+            + "- NEVER plain text. ALWAYS valid JSON. No exceptions.\n\n"
+
+            + "=== FLOW ===\n\n"
+
+            + "STEP 1 — WELCOME\n"
+            + "Always start with:\n"
+            + "{\"message\": \"Welcome to FinPulse! What would you like to do?\", "
+            + "\"options\": [\"Create Loan for Existing Customer\", \"Register New Customer + Loan\"], "
             + "\"hideInput\": true}\n\n"
-            + "STEP 6 - LOAN PURPOSE\n"
-            + "Ask: {\"message\": \"What is the purpose of this loan?\", \"options\": " + loanPurposeOptions + ", \"hideInput\": true}\n\n"
-            + "STEP 7 - BANK DETAILS\n"
-            + "Ask bank account number, then IFSC code (hideInput: false each).\n\n"
-            + "STEP 8 - CONFIRM LOAN\n"
-            + "Show full summary → {\"options\": [\"Yes, Create Loan Application\", \"No, Review Again\"], \"hideInput\": true}\n"
-            + "On confirm → call create_loan.\n\n"
+
+            + "STEP 2A — EXISTING CUSTOMER\n"
+            + "Ask: {\"message\": \"Please enter the customer's 10-digit registered mobile number.\", "
+            + "\"options\": [], \"hideInput\": false}\n"
+            + "Call lookup_customer(phone). On success show customer profile (name, income, credit score) "
+            + "and move to Step 3.\n\n"
+
+            + "STEP 2B — NEW CUSTOMER\n"
+            + "Collect fields ONE at a time (hideInput: false for text):\n"
+            + "Name → DOB (DD/MM/YYYY) → PAN → Aadhaar → Mobile → Email → Address\n"
+            + "→ Employment type: options [\"Salaried\", \"Self-Employed\"], hideInput: true\n"
+            + "→ Occupation/Employer → Monthly Income\n"
+            + "Show summary → options: [\"Yes, Create Customer\", \"No, Review Again\"], hideInput: true\n"
+            + "On confirm → call create_customer. Then proceed to Step 3.\n\n"
+
+            + "STEP 3 — LOAN TYPE\n"
+            + "{\"message\": \"What type of loan is required?\", \"options\": " + loanTypeOptions + ", "
+            + "\"hideInput\": true}\n\n"
+
+            + "STEP 4 — LOAN AMOUNT\n"
+            + "{\"message\": \"What loan amount does the customer require? (e.g. 5L, 2Cr, 500000)\", "
+            + "\"options\": [], \"hideInput\": false}\n\n"
+
+            + "STEP 5 — TENURE\n"
+            + "{\"message\": \"Select the loan tenure.\", "
+            + "\"options\": [\"12 months\", \"24 months\", \"36 months\", \"48 months\", "
+            + "\"60 months\", \"84 months\", \"120 months\"], \"hideInput\": true}\n\n"
+
+            + "STEP 6 — ELIGIBILITY CHECK\n"
+            + "Call check_eligibility(customerId, loanTypeCode, loanAmount, tenureMonths).\n"
+            + "Show the result clearly. Then ask:\n"
+            + "options: [\"Proceed with this amount\", \"Adjust loan amount\"], hideInput: true\n"
+            + "If \"Adjust loan amount\" → go back to Step 4.\n\n"
+
+            + "STEP 7 — LOAN PURPOSE\n"
+            + "{\"message\": \"What is the purpose of this loan?\", \"options\": " + loanPurposeOptions + ", "
+            + "\"hideInput\": true}\n\n"
+
+            + "STEP 8 — BANK DETAILS\n"
+            + "Ask bank account number (hideInput: false), then IFSC code (hideInput: false).\n\n"
+
+            + "STEP 9 — CONFIRM\n"
+            + "Show full loan summary (customer, type, amount, tenure, EMI, purpose, bank details).\n"
+            + "options: [\"Yes, Create Loan Application\", \"No, Review Again\"], hideInput: true\n"
+            + "On confirm → call create_loan. Then call check_documents(customerId).\n"
+            + "Show loan number + document status. Session ends.\n\n"
+
             + "=== RULES ===\n"
-            + "- ONE question at a time.\n"
-            + "- Number conversions: 80k=80000, 5L=500000, 1Cr=10000000\n"
-            + "- DOB: DD/MM/YYYY to YYYY-MM-DDTHH:mm:ss (e.g. 15/05/1990 to 1990-05-15T00:00:00)\n"
-            + "- PAN: uppercase. Aadhaar: digits only (no spaces).\n"
-            + "- Extract loanTypeCode from option (e.g. Personal Loan (PL) → PL)\n"
-            + "- Extract loanPurposeCode from option (e.g. Medical (MEDICAL) → MEDICAL)\n"
-            + "- Extract tenureMonths from option (e.g. 36 months → 36)\n"
-            + "- NEVER call a function until user confirms with yes.\n"
-            + "- ALWAYS return valid JSON. No plain text ever.\n";
+            + "- ONE question at a time. Never ask two things at once.\n"
+            + "- Amount conversions: 80k=80000, 5L=500000, 2.5L=250000, 1Cr=10000000\n"
+            + "- DOB: DD/MM/YYYY → YYYY-MM-DDTHH:mm:ss (e.g. 15/05/1990 → 1990-05-15T00:00:00)\n"
+            + "- PAN: uppercase. Aadhaar: digits only, no spaces.\n"
+            + "- Extract loanTypeCode from option label (e.g. \"Personal Loan (PL)\" → PL)\n"
+            + "- Extract loanPurposeCode from option label (e.g. \"Medical (MEDICAL)\" → MEDICAL)\n"
+            + "- Extract tenureMonths from option (e.g. \"36 months\" → 36)\n"
+            + "- NEVER call a function until the user has explicitly confirmed.\n"
+            + "- Chat scope ends at INITIATED status. Credit assessment and approvals happen in the main application.\n"
+            + "- ALWAYS return valid JSON. Never plain text.\n";
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -517,16 +701,17 @@ public class AiChatService {
             var existing = sessionRepo.findBySessionUuid(sessionId);
             if (existing.isPresent()) {
                 AiChatSessionEntity s = existing.get();
-                if (s.getExpiresAt() != null && s.getExpiresAt().isBefore(LocalDateTime.now())) {
-                    s.setStatus(AiSessionStatus.EXPIRED);
-                    sessionRepo.save(s);
+                // Refresh expiry on active sessions
+                if (s.getStatus() == AiSessionStatus.ACTIVE
+                        && (s.getExpiresAt() == null || s.getExpiresAt().isAfter(LocalDateTime.now()))) {
+                    return s;
                 }
-                if (s.getStatus() == AiSessionStatus.ACTIVE) return s;
+                // Expired or completed — fall through to create a fresh session
             }
         }
+        // Always generate a new UUID (avoids unique constraint collision on re-use)
         AiChatSessionEntity session = new AiChatSessionEntity();
-        session.setSessionUuid(sessionId != null && !sessionId.isBlank()
-                ? sessionId : java.util.UUID.randomUUID().toString());
+        session.setSessionUuid(java.util.UUID.randomUUID().toString());
         userRepo.findByUsername(username).ifPresent(session::setUser);
         return sessionRepo.save(session);
     }
@@ -537,6 +722,28 @@ public class AiChatService {
         msg.setRole(role);
         msg.setContent(content);
         messageRepo.save(msg);
+    }
+
+    /** Ensure the string is valid JSON. If not, wrap it in a JSON message object. */
+    private String ensureJson(String text) {
+        if (text == null || text.isBlank()) return fallbackJson("I couldn't generate a response.");
+        try {
+            objectMapper.readTree(text);
+            return text; // already valid JSON
+        } catch (Exception e) {
+            return fallbackJson(text);
+        }
+    }
+
+    private String fallbackJson(String message) {
+        try {
+            return objectMapper.writeValueAsString(Map.of(
+                    "message", message,
+                    "options", List.of(),
+                    "hideInput", false));
+        } catch (Exception e) {
+            return "{\"message\":\"" + message.replace("\"", "'") + "\",\"options\":[],\"hideInput\":false}";
+        }
     }
 
     static class ChatContext {
