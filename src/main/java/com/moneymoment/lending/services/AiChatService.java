@@ -252,6 +252,11 @@ public class AiChatService {
             Map<String, Object> args = objectMapper.readValue(argumentsJson, Map.class);
             String result = executeFunction(functionName, args, session, username, frontendCustomerId);
 
+            // Short-circuit: get_loan_purposes returns ready-made JSON — no follow-up needed
+            if ("get_loan_purposes".equals(functionName)) {
+                return result;
+            }
+
             // Build follow-up: history + assistant tool_call + tool result + JSON reminder
             List<Map<String, Object>> updatedMessages = new ArrayList<>(messages);
             updatedMessages.add(assistantMessage);
@@ -303,6 +308,7 @@ public class AiChatService {
         if ("lookup_customer".equals(name))      return executeLookupCustomer(args, session);
         if ("check_eligibility".equals(name))    return executeCheckEligibility(args, session, frontendCustomerId);
         if ("check_documents".equals(name))      return executeCheckDocuments(args, session, frontendCustomerId);
+        if ("get_loan_purposes".equals(name))    return executeGetLoanPurposes();
         return "Unknown function: " + name;
     }
 
@@ -544,6 +550,25 @@ public class AiChatService {
         }
     }
 
+    private String executeGetLoanPurposes() {
+        try {
+            List<String> options = masterService.getAllLoanPurposes().stream()
+                    .map(p -> p.getName() + " (" + p.getCode() + ")")
+                    .collect(Collectors.toList());
+
+            if (options.isEmpty()) {
+                return fallbackJson("No loan purposes are configured yet. Please contact your administrator.");
+            }
+
+            return objectMapper.writeValueAsString(Map.of(
+                    "message", "What is the purpose of this loan?",
+                    "options", options,
+                    "hideInput", true));
+        } catch (Exception e) {
+            return fallbackJson("Error loading loan purposes: " + e.getMessage());
+        }
+    }
+
     // ─── Message Builder ──────────────────────────────────────────────────────
 
     private List<Map<String, Object>> buildMessages(List<AiChatMessageEntity> history) {
@@ -623,7 +648,7 @@ public class AiChatService {
         // create_loan
         Map<String, Object> loanProps = new HashMap<>();
         loanProps.put("loanTypeCode", Map.of("type", "string", "description", "Loan type code: PL, HL, BL, EL, VL"));
-        loanProps.put("loanPurposeCode", Map.of("type", "string", "description", "Purpose code: MEDICAL, HOME_PURCHASE, BUSINESS_EXPANSION, EDUCATION, VEHICLE_PURCHASE, PERSONAL"));
+        loanProps.put("loanPurposeCode", Map.of("type", "string", "description", "Purpose code from user's selection. Extract the code in parentheses from their chosen purpose (e.g. 'Medical (MEDICAL)' → MEDICAL)."));
         loanProps.put("purpose", Map.of("type", "string", "description", "Brief purpose description"));
         loanProps.put("loanAmount", Map.of("type", "number", "description", "Loan amount in INR"));
         loanProps.put("tenureMonths", Map.of("type", "number", "description", "Tenure in months"));
@@ -641,6 +666,12 @@ public class AiChatService {
                 "description", "Check documents on file for the current customer. Returns count and status of uploaded documents.",
                 "parameters", Map.of("type", "object", "properties", new HashMap<>(), "required", List.of()))));
 
+        // get_loan_purposes
+        tools.add(Map.of("type", "function", "function", Map.of(
+                "name", "get_loan_purposes",
+                "description", "Fetch the list of available loan purposes from the database. Call this at Step 7 to show the user the purpose options to select from.",
+                "parameters", Map.of("type", "object", "properties", new HashMap<>(), "required", List.of()))));
+
         return tools;
     }
 
@@ -649,10 +680,6 @@ public class AiChatService {
     private String buildSystemPrompt() {
         String loanTypeOptions = masterService.getAllLoanTypes().stream()
                 .map(t -> t.getName() + " (" + t.getCode() + ")")
-                .collect(Collectors.joining("\", \"", "[\"", "\"]"));
-
-        String loanPurposeOptions = masterService.getAllLoanPurposes().stream()
-                .map(p -> p.getName() + " (" + p.getCode() + ")")
                 .collect(Collectors.joining("\", \"", "[\"", "\"]"));
 
         return "You are a loan onboarding assistant for FinPulse, a lending management system. "
@@ -707,8 +734,7 @@ public class AiChatService {
             + "If \"Adjust loan amount\" → go back to Step 4.\n\n"
 
             + "STEP 7 — LOAN PURPOSE\n"
-            + "{\"message\": \"What is the purpose of this loan?\", \"options\": " + loanPurposeOptions + ", "
-            + "\"hideInput\": true}\n\n"
+            + "Call get_loan_purposes tool. It returns ready-made JSON with all purpose options from the database — return its result directly to the user as-is.\n\n"
 
             + "STEP 8 — BANK DETAILS\n"
             + "Ask bank account number (hideInput: false), then IFSC code (hideInput: false).\n\n"
