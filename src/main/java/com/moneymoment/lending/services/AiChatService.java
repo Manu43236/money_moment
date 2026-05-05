@@ -207,7 +207,7 @@ public class AiChatService {
             System.err.println("[Groq ERROR] " + e.getStatusCode() + " — " + e.getResponseBodyAsString());
             if (e.getStatusCode().value() == 429) {
                 // Rate limit — wait 2s and retry once
-                try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                try { Thread.sleep(5000); } catch (InterruptedException ignored) {}
                 try {
                     HttpHeaders retryHeaders = new HttpHeaders();
                     retryHeaders.setContentType(MediaType.APPLICATION_JSON);
