@@ -83,6 +83,12 @@ public class AiChatService {
 
     public AiChatResponseDto chat(String sessionId, String userMessage, String username, Long frontendCustomerId) {
         ChatContext ctx = persistIncoming(sessionId, userMessage, username);
+
+        // After eligibility confirmed, show loan purposes directly — no Groq call needed
+        if ("Proceed with this amount".equals(userMessage)) {
+            return persistReply(ctx, executeGetLoanPurposes());
+        }
+
         String assistantReply = callGroq(ctx.session, ctx.history, username, frontendCustomerId);
         return persistReply(ctx, assistantReply);
     }
@@ -694,7 +700,7 @@ public class AiChatService {
             + "4. AMOUNT — ask amount (hideInput:false)\n"
             + "5. TENURE — options:[\"12 months\",\"24 months\",\"36 months\",\"48 months\",\"60 months\",\"84 months\",\"120 months\"], hideInput:true\n"
             + "6. ELIGIBILITY — call check_eligibility → show result → options:[\"Proceed with this amount\",\"Adjust loan amount\"]\n"
-            + "7. PURPOSE — call get_loan_purposes tool (it returns ready JSON — use it as-is)\n"
+            + "7. PURPOSE — (handled automatically) Ask bank details after user selects a purpose\n"
             + "8. BANK DETAILS — ask account number then IFSC (hideInput:false each)\n"
             + "9. CONFIRM — show full summary → options:[\"Yes, Create Loan Application\",\"No, Review Again\"] → call create_loan → call check_documents → done\n\n"
 
