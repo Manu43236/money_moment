@@ -26,7 +26,7 @@ jobs:
       - name: Deploy to EC2
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          EC2_HOST: 13.206.81.60
+          EC2_HOST: 3.111.157.192
           EC2_USER: ubuntu
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
