@@ -341,6 +341,7 @@ public class AiChatService {
                 return "Customer account is inactive. Please contact support.";
             }
 
+            
             session.setCreatedCustomer(customerRepo.getReferenceById(c.getId()));
             session.setCustomerAction("FOUND");
             sessionRepo.save(session);
