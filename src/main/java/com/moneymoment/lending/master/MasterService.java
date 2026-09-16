@@ -11,6 +11,7 @@ import com.moneymoment.lending.master.entities.InterestRateConfigEntity;
 import com.moneymoment.lending.master.entities.LoanPurposesEntity;
 import com.moneymoment.lending.master.entities.LoanStatusesEntity;
 import com.moneymoment.lending.master.entities.LoanTypesEntity;
+import com.moneymoment.lending.master.entities.PreClosureConfigEntity;
 import com.moneymoment.lending.master.entities.ProcessingFeeConfigEntity;
 import com.moneymoment.lending.master.entities.TenureMasterEntity;
 import com.moneymoment.lending.master.repos.DisbursementModesRepo;
@@ -19,6 +20,7 @@ import com.moneymoment.lending.master.repos.InterestRateConfigRepository;
 import com.moneymoment.lending.master.repos.LoanPurposesRepo;
 import com.moneymoment.lending.master.repos.LoanStatusesRepo;
 import com.moneymoment.lending.master.repos.LoneTypeRepo;
+import com.moneymoment.lending.master.repos.PreClosureConfigRepository;
 import com.moneymoment.lending.master.repos.ProcessingFeeConfigRepository;
 import com.moneymoment.lending.master.repos.TenureMasterRepository;
 import com.moneymoment.lending.entities.RoleEntity;
@@ -37,19 +39,20 @@ public class MasterService {
 
         private final TenureMasterRepository tenureMasterRepo;
         private final ProcessingFeeConfigRepository processingFeeConfigRepo;
+        private final PreClosureConfigRepository preClosureConfigRepo;
 
         private final InterestRateConfigRepository interestRateConfigRepo;
 
         private final DocumentTypesRepo documentTypesRepo;
         private final RoleRepository roleRepository;
 
-        // Constructor with all 4 repos
         MasterService(LoneTypeRepo loanTypeRepo, LoanPurposesRepo loanPurposeRepo,
                         DisbursementModesRepo disbursementModeRepo, LoanStatusesRepo loanStatusRepo,
                         InterestRateConfigRepository interestRateConfigRepo,
                         TenureMasterRepository tenureMasterRepo,
                         DocumentTypesRepo documentTypesRepo,
                         ProcessingFeeConfigRepository processingFeeConfigRepo,
+                        PreClosureConfigRepository preClosureConfigRepo,
                         RoleRepository roleRepository) {
                 this.loanTypeRepo = loanTypeRepo;
                 this.loanPurposeRepo = loanPurposeRepo;
@@ -58,6 +61,7 @@ public class MasterService {
                 this.interestRateConfigRepo = interestRateConfigRepo;
                 this.tenureMasterRepo = tenureMasterRepo;
                 this.processingFeeConfigRepo = processingFeeConfigRepo;
+                this.preClosureConfigRepo = preClosureConfigRepo;
                 this.documentTypesRepo = documentTypesRepo;
                 this.roleRepository = roleRepository;
         }
@@ -160,6 +164,34 @@ public class MasterService {
         public RoleEntity getRoleByCode(String roleCode) {
                 return roleRepository.findByRoleCode(roleCode)
                                 .orElseThrow(() -> new ResourceNotFoundException("Role", "roleCode", roleCode));
+        }
+
+        public List<PreClosureConfigEntity> getAllPreClosureConfigs() {
+                return preClosureConfigRepo.findAll();
+        }
+
+        public PreClosureConfigEntity savePreClosureConfig(PreClosureConfigEntity config) {
+                LoanTypesEntity loanType = loanTypeRepo.findById(config.getLoanType().getId())
+                                .orElseThrow(() -> new ResourceNotFoundException("LoanType", "id",
+                                                config.getLoanType().getId().toString()));
+                config.setLoanType(loanType);
+                return preClosureConfigRepo.save(config);
+        }
+
+        public PreClosureConfigEntity updatePreClosureConfig(Long id, PreClosureConfigEntity updated) {
+                PreClosureConfigEntity existing = preClosureConfigRepo.findById(id)
+                                .orElseThrow(() -> new ResourceNotFoundException("PreClosureConfig", "id",
+                                                id.toString()));
+                LoanTypesEntity loanType = loanTypeRepo.findById(updated.getLoanType().getId())
+                                .orElseThrow(() -> new ResourceNotFoundException("LoanType", "id",
+                                                updated.getLoanType().getId().toString()));
+                existing.setLoanType(loanType);
+                existing.setChargeType(updated.getChargeType());
+                existing.setChargeValue(updated.getChargeValue());
+                existing.setMinCharge(updated.getMinCharge());
+                existing.setMaxCharge(updated.getMaxCharge());
+                existing.setIsActive(updated.getIsActive());
+                return preClosureConfigRepo.save(existing);
         }
 
 }

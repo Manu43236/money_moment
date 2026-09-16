@@ -6,6 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,6 +19,7 @@ import com.moneymoment.lending.master.entities.DocumentTypesEntity;
 import com.moneymoment.lending.master.entities.LoanPurposesEntity;
 import com.moneymoment.lending.master.entities.LoanStatusesEntity;
 import com.moneymoment.lending.master.entities.LoanTypesEntity;
+import com.moneymoment.lending.master.entities.PreClosureConfigEntity;
 import com.moneymoment.lending.master.entities.ProcessingFeeConfigEntity;
 import com.moneymoment.lending.master.entities.TenureMasterEntity;
 import com.moneymoment.lending.entities.RoleEntity;
@@ -137,5 +141,31 @@ public class MasterController {
         return ResponseEntity.ok(ApiResponse.success(
                 masterService.getDocumentTypesByCode(code),
                 "Document type fetched successfully"));
+    }
+
+    @GetMapping("/pre-closure-configs")
+    public ResponseEntity<ApiResponse<List<PreClosureConfigEntity>>> getAllPreClosureConfigs() {
+        return ResponseEntity.ok(ApiResponse.success(
+                masterService.getAllPreClosureConfigs(),
+                "Pre-closure configs fetched successfully"));
+    }
+
+    @PreAuthorize("hasAnyAuthority('ADMIN')")
+    @PostMapping("/pre-closure-configs")
+    public ResponseEntity<ApiResponse<PreClosureConfigEntity>> createPreClosureConfig(
+            @RequestBody PreClosureConfigEntity config) {
+        return ResponseEntity.ok(ApiResponse.success(
+                masterService.savePreClosureConfig(config),
+                "Pre-closure config created successfully"));
+    }
+
+    @PreAuthorize("hasAnyAuthority('ADMIN')")
+    @PutMapping("/pre-closure-configs/{id}")
+    public ResponseEntity<ApiResponse<PreClosureConfigEntity>> updatePreClosureConfig(
+            @PathVariable Long id,
+            @RequestBody PreClosureConfigEntity config) {
+        return ResponseEntity.ok(ApiResponse.success(
+                masterService.updatePreClosureConfig(id, config),
+                "Pre-closure config updated successfully"));
     }
 }
