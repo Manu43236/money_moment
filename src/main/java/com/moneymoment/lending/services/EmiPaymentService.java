@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.moneymoment.lending.common.constants.AppConstants;
+import com.moneymoment.lending.dtos.BulkPaymentRequestDto;
+import com.moneymoment.lending.dtos.BulkPaymentResponseDto;
 import com.moneymoment.lending.common.enums.EmiStatusEnums;
 import com.moneymoment.lending.common.enums.LoanStatusEnums;
 import com.moneymoment.lending.common.enums.PaymentStatusEnums;
@@ -197,6 +199,64 @@ public class EmiPaymentService {
         // Re-fetch loan to return updated status
         loan = loanRepo.findById(loan.getId()).orElse(loan);
         return toDto(payment, emi, loan);
+    }
+
+    @Transactional
+    public BulkPaymentResponseDto bulkClearLoan(BulkPaymentRequestDto request) {
+        LoanEntity loan = loanRepo.findByLoanNumber(request.getLoanNumber())
+                .orElseThrow(() -> new ResourceNotFoundException("Loan", "loanNumber", request.getLoanNumber()));
+
+        List<EmiScheduleEntity> overdueEmis = emiScheduleRepository
+                .findByLoanIdAndStatusInOrderByEmiNumberAsc(loan.getId(),
+                        List.of(EmiStatusEnums.OVERDUE, EmiStatusEnums.PARTIALLY_PAID));
+
+        if (overdueEmis.isEmpty()) {
+            throw new BusinessLogicException("No overdue EMIs found for loan: " + request.getLoanNumber());
+        }
+
+        double penaltiesTotal = loanPenaltyRepository.findByLoanIdAndIsPaid(loan.getId(), false)
+                .stream()
+                .filter(p -> !Boolean.TRUE.equals(p.getIsWaived()))
+                .mapToDouble(p -> p.getPenaltyAmount() - (p.getPaidAmount() != null ? p.getPaidAmount() : 0.0))
+                .sum();
+
+        int emisCleared = 0;
+        double totalPaid = 0.0;
+        boolean penaltiesIncluded = false;
+
+        for (EmiScheduleEntity emi : overdueEmis) {
+            // Re-fetch to get latest state after each payment
+            emi = emiScheduleRepository.findById(emi.getId()).orElse(emi);
+            if (EmiStatusEnums.PAID.equals(emi.getStatus())) continue;
+
+            double alreadyPaid = emi.getAmountPaid() != null ? emi.getAmountPaid() : 0.0;
+            double emiDue = emi.getEmiAmount() - alreadyPaid;
+            double paymentAmount = emiDue + (!penaltiesIncluded ? penaltiesTotal : 0.0);
+            penaltiesIncluded = true;
+
+            PaymentRequestDto req = new PaymentRequestDto();
+            req.setLoanNumber(request.getLoanNumber());
+            req.setEmiNumber(emi.getEmiNumber());
+            req.setPaymentAmount(Math.round(paymentAmount * 100.0) / 100.0);
+            req.setPaymentMode(request.getPaymentMode());
+            req.setPaymentDate(request.getPaymentDate());
+            req.setTransactionId(request.getTransactionId());
+            req.setReferenceNumber(request.getReferenceNumber());
+
+            processPayment(req);
+            emisCleared++;
+            totalPaid += paymentAmount;
+        }
+
+        loan = loanRepo.findById(loan.getId()).orElse(loan);
+
+        BulkPaymentResponseDto result = new BulkPaymentResponseDto();
+        result.setLoanNumber(request.getLoanNumber());
+        result.setEmisCleared(emisCleared);
+        result.setPenaltiesCleared(penaltiesTotal);
+        result.setTotalAmountPaid(Math.round(totalPaid * 100.0) / 100.0);
+        result.setNewLoanStatus(loan.getLoanStatus().getCode());
+        return result;
     }
 
     private PaymentResponseDto toDto(EmiPaymentEntity payment, EmiScheduleEntity emi, LoanEntity loan) {

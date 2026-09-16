@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.moneymoment.lending.common.response.ApiResponse;
 import com.moneymoment.lending.common.response.PagedResponse;
+import com.moneymoment.lending.dtos.BulkPaymentRequestDto;
+import com.moneymoment.lending.dtos.BulkPaymentResponseDto;
 import com.moneymoment.lending.dtos.PaymentRequestDto;
 import com.moneymoment.lending.dtos.PaymentResponseDto;
 import com.moneymoment.lending.services.EmiPaymentService;
@@ -54,5 +56,16 @@ public class EmiPaymentController {
                 ApiResponse.success(
                         emiPaymentService.processPayment(request),
                         "Payment processed successfully"));
+    }
+
+    @PreAuthorize("hasAnyAuthority('OPERATIONS_MANAGER', 'ADMIN')")
+    @PostMapping("/bulk-clear")
+    public ResponseEntity<ApiResponse<BulkPaymentResponseDto>> bulkClear(
+            @RequestBody BulkPaymentRequestDto request) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        emiPaymentService.bulkClearLoan(request),
+                        "All overdue EMIs cleared successfully"));
     }
 }
