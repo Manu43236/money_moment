@@ -14,7 +14,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          echo "StrictHostKeyChecking no" >> ~/.ssh/config
+          printf "StrictHostKeyChecking no\nServerAliveInterval 60\nServerAliveCountMax 10\n" >> ~/.ssh/config
 
       - name: Deploy API on EC2
         run: |
