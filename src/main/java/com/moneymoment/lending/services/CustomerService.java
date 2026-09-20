@@ -33,15 +33,19 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
     private final LoanRepo loanRepo;
+    private final BehaviorScoreService behaviorScoreService;
 
-    CustomerService(CustomerRepository customerRepository, UserRepository userRepository, LoanRepo loanRepo) {
+    CustomerService(CustomerRepository customerRepository, UserRepository userRepository, LoanRepo loanRepo,
+            BehaviorScoreService behaviorScoreService) {
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
         this.loanRepo = loanRepo;
+        this.behaviorScoreService = behaviorScoreService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CustomerResponseDto fetchCustomerById(Long id) {
+        behaviorScoreService.recalculateCustomer(id, "PROFILE_VIEW");
         return customerRepository.findById(id)
                 .map(this::toDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", id));

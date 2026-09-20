@@ -11,6 +11,10 @@ import com.moneymoment.lending.common.response.ApiResponse;
 import com.moneymoment.lending.common.response.PagedResponse;
 import com.moneymoment.lending.dtos.CustomerRequestDto;
 import com.moneymoment.lending.dtos.CustomerResponseDto;
+import com.moneymoment.lending.dtos.BehaviorScoreHistoryDto;
+import com.moneymoment.lending.services.BehaviorScoreService;
+
+import java.util.List;
 import com.moneymoment.lending.services.CustomerService;
 
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,9 +28,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final BehaviorScoreService behaviorScoreService;
 
-    CustomerController(CustomerService customerService) {
+    CustomerController(CustomerService customerService, BehaviorScoreService behaviorScoreService) {
         this.customerService = customerService;
+        this.behaviorScoreService = behaviorScoreService;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -66,6 +72,13 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<CustomerResponseDto>> fetchCustomerById(@PathVariable Long id) {
         return ResponseEntity
                 .ok(ApiResponse.success(customerService.fetchCustomerById(id), "Successfully fetched customer"));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}/behavior-score-history")
+    public ResponseEntity<ApiResponse<List<BehaviorScoreHistoryDto>>> fetchBehaviorScoreHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(behaviorScoreService.history(id),
+                "Successfully fetched behaviour score history"));
     }
 
     @PreAuthorize("hasAnyAuthority('BRANCH_MANAGER', 'REGIONAL_MANAGER', 'CHIEF_CREDIT_OFFICER', 'ADMIN')")

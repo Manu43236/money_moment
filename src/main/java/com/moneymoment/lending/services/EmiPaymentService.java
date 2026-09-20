@@ -43,15 +43,17 @@ public class EmiPaymentService {
     private final EmiPaymentRepository emiPaymentRepository;
     private final LoanPenaltyRepository loanPenaltyRepository;
     private final DpdService dpdService;
+    private final BehaviorScoreService behaviorScoreService;
 
     EmiPaymentService(LoanRepo loanRepo, EmiScheduleRepository emiScheduleRepository,
             EmiPaymentRepository emiPaymentRepository, LoanPenaltyRepository loanPenaltyRepository,
-            DpdService dpdService) {
+            DpdService dpdService, BehaviorScoreService behaviorScoreService) {
         this.loanRepo = loanRepo;
         this.emiScheduleRepository = emiScheduleRepository;
         this.emiPaymentRepository = emiPaymentRepository;
         this.loanPenaltyRepository = loanPenaltyRepository;
         this.dpdService = dpdService;
+        this.behaviorScoreService = behaviorScoreService;
     }
 
     @Transactional(readOnly = true)
@@ -195,6 +197,7 @@ public class EmiPaymentService {
 
         // Update loan status immediately — no need to wait for EOD
         dpdService.updateLoanStatus(loan.getId());
+        behaviorScoreService.recalculateCustomer(loan.getCustomer().getId(), "EMI_PAYMENT");
 
         // Re-fetch loan to return updated status
         loan = loanRepo.findById(loan.getId()).orElse(loan);

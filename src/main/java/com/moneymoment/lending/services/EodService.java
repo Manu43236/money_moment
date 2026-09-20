@@ -47,6 +47,7 @@ public class EodService {
     private final ArchivalService archivalService;
     private final NextDayPrepService nextDayPrepService;
     private final EodVerificationService eodVerificationService;
+    private final BehaviorScoreService behaviorScoreService;
 
     private final AtomicReference<EodJobStatus> currentJob = new AtomicReference<>(buildIdleStatus());
 
@@ -66,7 +67,8 @@ public class EodService {
             EodReportingService eodReportingService,
             ArchivalService archivalService,
             NextDayPrepService nextDayPrepService,
-            EodVerificationService eodVerificationService) {
+            EodVerificationService eodVerificationService,
+            BehaviorScoreService behaviorScoreService) {
         this.dpdService = dpdService;
         this.penaltyService = penaltyService;
         this.emiScheduleRepository = emiScheduleRepository;
@@ -83,6 +85,7 @@ public class EodService {
         this.archivalService = archivalService;
         this.nextDayPrepService = nextDayPrepService;
         this.eodVerificationService = eodVerificationService;
+        this.behaviorScoreService = behaviorScoreService;
     }
 
     public EodJobStatus getStatus() {
@@ -258,6 +261,7 @@ public class EodService {
 
         // Apply late fees for overdue EMIs
         int[] penaltyStats = applyLateFees();
+        int scoresChanged = behaviorScoreService.recalculateAll("EOD");
 
         return Map.of(
             "totalLoansProcessed",  result.getTotalLoansProcessed(),
@@ -267,7 +271,8 @@ public class EodService {
             "loansMarkedActive",    result.getLoansMarkedActive(),
             "loansMarkedOverdue",   result.getLoansMarkedOverdue(),
             "loansMarkedNpa",       result.getLoansMarkedNpa(),
-            "penaltiesApplied",     penaltyStats[0]
+            "penaltiesApplied",     penaltyStats[0],
+            "behaviorScoresChanged", scoresChanged
         );
     }
 

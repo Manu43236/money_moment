@@ -24,6 +24,11 @@ public interface EmiScheduleRepository extends JpaRepository<EmiScheduleEntity, 
 
     List<EmiScheduleEntity> findByDueDateAndStatus(LocalDate dueDate, String status);
 
+    List<EmiScheduleEntity> findByCustomerIdOrderByDueDateAsc(Long customerId);
+
+    @Query("SELECT DISTINCT e.customer.id FROM EmiScheduleEntity e")
+    List<Long> findDistinctCustomerIds();
+
     Long countByLoanIdAndStatus(Long loanId, String status);
 
     // Returns the first EMI (by EMI number) whose status is in the given list — used for oldest-first enforcement and nextDueDate
