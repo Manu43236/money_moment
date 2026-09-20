@@ -59,6 +59,12 @@ public class AiChatSessionEntity {
     @Column(length = 10)
     private String customerAction; // "CREATED" or "FOUND"
 
+    @Column(length = 50)
+    private String workflowStep;
+
+    @Column(columnDefinition = "TEXT")
+    private String workflowData;
+
     @Column
     private LocalDateTime expiresAt;
 

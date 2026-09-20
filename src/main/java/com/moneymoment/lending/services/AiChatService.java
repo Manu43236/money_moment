@@ -41,8 +41,11 @@ import com.moneymoment.lending.repos.UserRepository;
 @Service
 public class AiChatService {
 
-    @Value("${groq.api.key}")
+    @Value("${groq.api.key:disabled}")
     private String apiKey;
+
+    @Value("${finpulse.ai.mode:GUIDED}")
+    private String assistantMode;
 
     @Value("${groq.model.chat:llama-3.3-70b-versatile}")
     private String chatModel;
@@ -60,12 +63,13 @@ public class AiChatService {
     private final DocumentRepository documentRepository;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final ConversationalWorkflowService workflowService;
 
     AiChatService(AiChatSessionRepository sessionRepo, AiChatMessageRepository messageRepo,
             CustomerService customerService, LoanService loanService,
             UserRepository userRepo, CustomerRepository customerRepo,
             LoanRepo loanRepo, MasterService masterService,
-            DocumentRepository documentRepository) {
+            DocumentRepository documentRepository, ConversationalWorkflowService workflowService) {
         this.sessionRepo = sessionRepo;
         this.messageRepo = messageRepo;
         this.customerService = customerService;
@@ -75,6 +79,7 @@ public class AiChatService {
         this.loanRepo = loanRepo;
         this.masterService = masterService;
         this.documentRepository = documentRepository;
+        this.workflowService = workflowService;
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
     }
@@ -82,6 +87,9 @@ public class AiChatService {
     // ─── Public entry point ───────────────────────────────────────────────────
 
     public AiChatResponseDto chat(String sessionId, String userMessage, String username, Long frontendCustomerId) {
+        if (!"GROQ".equalsIgnoreCase(assistantMode)) {
+            return workflowService.chat(sessionId, userMessage, username, frontendCustomerId);
+        }
         ChatContext ctx = persistIncoming(sessionId, userMessage, username);
 
         // After eligibility confirmed, show loan purposes directly — no Groq call needed
@@ -142,6 +150,7 @@ public class AiChatService {
         response.setReply(displayReply);
         response.setOptions(options.isEmpty() ? null : options);
         response.setHideInput(hideInput);
+        response.setAssistantMode("LLM");
 
         if (session.getCreatedCustomer() != null) {
             customerRepo.findById(session.getCreatedCustomer().getId()).ifPresent(c -> {
