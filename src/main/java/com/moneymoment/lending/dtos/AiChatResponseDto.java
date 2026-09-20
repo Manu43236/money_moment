@@ -22,4 +22,5 @@ public class AiChatResponseDto {
     private KycSummaryDto kycSummary;
     private List<String> options;  // quick-reply buttons to show
     private boolean hideInput;     // hide text input when options are shown
+    private String assistantMode;  // GUIDED or LLM
 }
